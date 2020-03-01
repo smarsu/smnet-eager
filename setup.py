@@ -19,7 +19,8 @@ from setuptools import find_packages, setup
 
 def config_setup(name):
   packages = find_packages()
-  package_data = ['third_party/cblas/lib/libsmcb.so']
+  package_data = ['third_party/lib/libsmcb.so',
+                  'third_party/lib/libsmnv.so']
 
   setup(
     name = name,

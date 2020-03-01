@@ -7,7 +7,7 @@ import numpy as np
 def get_smcb_lib_path():
     rlpt = osp.realpath(__file__)
     rldir = osp.split(osp.split(rlpt)[0])[0]
-    lbpt = osp.join(rldir, 'third_party', 'cblas', 'lib', 'libsmcb.so')
+    lbpt = osp.join(rldir, 'third_party', 'lib', 'libsmcb.so')
     return lbpt
 
 
@@ -34,7 +34,7 @@ def broadcast_shape(shape1, shape2):
 
     shape.append(max(dim1, dim2))
 
-  return shape
+  return shape, shape1, shape2
 
 
 def get_reduce_axis(shape, res_shape):

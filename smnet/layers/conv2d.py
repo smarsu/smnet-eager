@@ -4,7 +4,10 @@ import math
 import numpy as np
 
 from . import _math_utils as math_utils
+from ..blob import Tensor
 from ..layer import Layer
+from ..kernels.gpu import *
+from ..third_party import nvarray as nv
 
 
 def get_output_dim(input_dim, pad, filter_dim, dilation, stride):
@@ -21,8 +24,8 @@ class Conv2D(Layer):
                name=None):
     super(Conv2D, self).__init__(name=name)
     self._setup(input, filter, strides, padding, dilations)
-  
-  
+
+
   def _setup(self, input, filter, strides, padding, dilations):
     self.input = self._to_tensor(input)
     self.filter = self._to_tensor(filter)
@@ -32,13 +35,13 @@ class Conv2D(Layer):
     self.padding = padding
     self.dilations = dilations
 
-  
-  def forward(self):
+
+  def prepare(self):
     n, ci, hi, wi = self.input.shape
     co, ci, hf, wf = self.filter.shape
 
-    hd, wd = self.dilations
     hs, ws = self.strides
+    hd, wd = self.dilations
 
     if self.padding == 'VALID':
       pad_t, pad_b, pad_l, pad_r = 0, 0, 0, 0
@@ -53,6 +56,12 @@ class Conv2D(Layer):
     ho = get_output_dim(hi, pad_t + pad_b, hf, hd, hs)
     wo = get_output_dim(wi, pad_l + pad_r, wf, wd, ws)
 
+    return pad_t, pad_b, pad_l, pad_r, n, co, ho, wo
+
+  
+  def forward(self):
+    pad_t, pad_b, pad_l, pad_r, n, co, ho, wo = self.prepare()
+
     self.pad_input = np.pad(
       self.input.data, 
       ((0, 0), 
@@ -61,11 +70,10 @@ class Conv2D(Layer):
        (pad_l, pad_r)), 
       'constant', 
       constant_values=0)
+    self.pad_shape = [pad_t, pad_b, pad_l, pad_r]
 
     self.res.feed(np.empty(shape=(n, co, ho, wo), dtype=self.res.dtype))
   
-    self.pad_shape = [pad_t, pad_b, pad_l, pad_r]
-
     math_utils.conv2d(self.res.data, 
                       self.pad_input, 
                       self.filter.data, 
@@ -85,7 +93,7 @@ class Conv2D(Layer):
                                     self.pad_shape, 
                                     self.dilations, 
                                     0.)
-    
+
     pad_t, pad_b, pad_l, pad_r = self.pad_shape
     self.input.feed_grad(input_grad[:, :, pad_t:pad_input_h-pad_b, pad_l:pad_input_w-pad_r])
 
@@ -98,12 +106,83 @@ class Conv2D(Layer):
                                       1 if self.filter._grad_seted else 0)
 
 
+class GpuConv2D(Conv2D):
+  def __init__(self, 
+               input, 
+               filter, 
+               strides, 
+               padding, 
+               dilations=[1, 1], 
+               name=None):
+    super(GpuConv2D, self).__init__(input, filter, strides, padding, dilations, name=name)
+
+
+  def __del__(self):
+    del self.conv2d_kernel
+    if self.pad is not None:
+      del self.pad
+
+
+  def forward(self):
+    n, ci, hi, wi = self.input.shape
+    pad_t, pad_b, pad_l, pad_r, n, co, ho, wo = self.prepare()
+
+    self.res.reshape([n, co, ho, wo])
+
+    self.addpad_kernel = None
+    self.pad = None
+
+    addpad_h, addpad_w = (pad_t + pad_b) % 2, (pad_l + pad_r) % 2
+    if addpad_h != 0 or addpad_w != 0:
+      shape = [n, ci, hi + addpad_h, wi + addpad_w]
+      self.pad = Tensor(dtype=self.input.dtype)
+      self.pad.reshape(shape)
+      self.addpad_kernel = PadConstNCHWKernel(self.input, self.pad, addpad_h, addpad_w, 0)
+
+      self.conv2d_kernel = Conv2DKernel(self.pad, 
+                                        self.filter, 
+                                        self.res, 
+                                        ((pad_t + pad_b) // 2, (pad_l + pad_r) // 2), 
+                                        self.strides, 
+                                        self.dilations)
+    else:
+      self.conv2d_kernel = Conv2DKernel(self.input, 
+                                        self.filter, 
+                                        self.res, 
+                                        ((pad_t + pad_b) // 2, (pad_l + pad_r) // 2), 
+                                        self.strides, 
+                                        self.dilations)
+
+    if self.addpad_kernel is not None:
+      self.addpad_kernel.forward()
+    self.conv2d_kernel.forward()
+  
+
+  def backward(self):
+    self.conv2d_kernel.backward()
+
+    if self.addpad_kernel is not None:
+      self.addpad_kernel.backward()
+
+    self.input._grad_seted = True
+    self.filter._grad_seted = True
+
+
 def conv2d(input, 
            filter, 
            strides, 
            padding, 
            dilations=[1, 1], 
-           name=None):
-  layer = Conv2D(input, filter, strides, padding, dilations, name)
+           name=None,
+           device='gpu'):
+  if device == 'gpu':
+    layer = GpuConv2D(input, filter, strides, padding, dilations, name)
+  elif device == 'cpu':
+    layer = Conv2D(input, filter, strides, padding, dilations, name)
+  else:
+    raise ValueError('Unsupport device {} for Conv2D'.format(device))
+
+  # layer = Conv2D(input, filter, strides, padding, dilations, name)
+
   layer.forward()
   return layer.res

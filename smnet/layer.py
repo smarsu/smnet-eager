@@ -31,6 +31,7 @@ class Layer(object):
     #   if not blob.net.empty():
     #     res._net = blob.net
     #     break
+    # We use merge and we have never destory the blob.
     for blob in blobs:
       res.net.merge_net(blob.net)
 

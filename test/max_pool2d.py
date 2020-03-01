@@ -8,18 +8,16 @@ from _base import TestBase
 
 
 def sm_func(value, ksize, strides, padding):
-  value = sm.Variable(value, dtype=np.float32, name='a')
   y = sm.max_pool2d(value, ksize, strides, padding)
-  return y, (value.data, ksize, strides, padding)
+  return y, ()
 
 
 def gt_func(value, ksize, strides, padding):
-  value = value.transpose(0, 2, 3, 1)
+  value = tf.transpose(value, [0, 2, 3, 1])
 
   ksize = [1] + ksize + [1]
   strides = [1] + strides + [1]
 
-  value = tf.Variable(value, dtype=tf.float32)
   y = tf.nn.max_pool(value, ksize, strides, padding)
   y = tf.transpose(y, [0, 3, 1, 2])
   return y, tuple()
@@ -31,7 +29,8 @@ def to_inputs(shape_value, ksize, strides, padding, **params):
 
   value = np.random.normal(loc=loc, scale=scale, size=shape_value)
 
-  return value, ksize, strides, padding
+  return (sm.Variable(value, dtype=np.float32), ksize, strides, padding), \
+         (tf.Variable(value, dtype=tf.float32), ksize, strides, padding),
 
 
 if __name__ == '__main__':

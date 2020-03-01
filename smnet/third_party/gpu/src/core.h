@@ -1,13 +1,17 @@
 // Copyright (c) 2020 smarsu. All Rights Reserved.
 
 #pragma once
+#include <vector>
+#include <string>
+
+#include "cuda_runtime.h"
 #include "cuda_runtime_api.h"
 #include "cudnn.h"
 
 #include "glog/logging.h"
 
 #define CALL_CUDA(x)                                         \
-  CHECK_EQ(static_cast<cudaError_t>(x), CUDA_STATUS_SUCCESS) \
+  CHECK_EQ(static_cast<cudaError_t>(x), cudaSuccess) \
     << cudaGetErrorString(x)
 
 #define CALL_CUBLAS(x) \
@@ -17,25 +21,28 @@
   CHECK_EQ(static_cast<cudnnStatus_t>(x), CUDNN_STATUS_SUCCESS) \
     << cudnnGetErrorString(x)
 
-cudnnHandle_t *CudnnHandle() {
-  static cudnnHandle_t *handle = nullptr;
-  if (!handle) {
-    CALL_CUDNN(cudnnCreate(&handle)) << " Create cudnn handle failed."; 
-  }
-  return handle;
-}
+#define CUDA_NUM_THREADS (1024)
 
-void *CudaMalloc(size_t size) {
-  void *ptr = nullptr;
-  CALL_CUDA(cudaMalloc(&ptr, size)) << " cuda malloc " << size << " failed.";
-  return ptr;
-}
+#define CUDA_GET_BOLCKS(n) (((n) + CUDA_NUM_THREADS - 1) / CUDA_NUM_THREADS)
 
-void CudaFree(void *ptr) {
-  if (ptr) {
-    CALL_CUDA(cudaFree(ptr));
-  }
-}
+#define To3DIndex(x, y, z, X, Y, Z) \
+  (((x) * (Y) + (y)) * (Z) + (z))
+
+std::string ToString(int *shape, int ndims);
+
+std::vector<int> Shape2Strides(int *shape, int ndims);
+
+extern "C" {
+
+cudnnHandle_t CudnnHandle();
+
+void *CudaMalloc(size_t size);
+
+void CudaFree(void *ptr);
+
+void CudaMemcpyHostToDevice(void *dev, const void *host, size_t size);
+
+void CudaMemcpyDeviceToHost(void *host, const void *dev, size_t size);
 
 struct CudaBuffer {
   static CudaBuffer *Buffer(size_t size = 0) {
@@ -46,6 +53,8 @@ struct CudaBuffer {
   CudaBuffer(size_t size = 0) {
     Resize(size);
   }
+
+  void *data() { return data_; }
 
   void Resize(size_t size) {
     if (size > capacity_) {
@@ -59,6 +68,8 @@ struct CudaBuffer {
     CudaFree(data_);
   }
 
-  void *data_{0};
+  void *data_{nullptr};
   size_t capacity_{0};
 };
+
+}  // extern "C"

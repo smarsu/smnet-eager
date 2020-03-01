@@ -2,7 +2,9 @@
 
 import numpy as np
 
+from .third_party import nvarray as nv
 from .net import Net
+from . import manager
 
 
 class VariableManager(object):
@@ -61,10 +63,14 @@ def restore(path):
 
 class Blob(object):
   def __init__(self, data=None, dtype=np.float32, name=None, type='Blob'):
-    self._net = Net()
-
     self._grad_seted = False
     self._dtype = dtype
+    self._data_device = self._grad_device = 'cpu'
+
+    self._data = None
+
+    self._gpu = None
+    self._gpu_grad = None
 
     if data is not None:
       self.copy_from(data)
@@ -73,6 +79,16 @@ class Blob(object):
 
     self._type = type
     self._name = name
+
+    self._net = Net(self)
+
+
+  def __del__(self):
+    pass
+    # if self._gpu is not None:
+    #   del self._gpu
+    # if self._gpu_grad is not None:
+    #   del self._gpu_grad
   
 
   def copy_from(self, data):
@@ -105,16 +121,109 @@ class Blob(object):
     self._grad_seted = True
 
 
+  def reshape(self, shape):
+    self._shape = shape
+    self._size = int(np.prod(shape))
+
+
+  def to_gpu(self, type='data'):
+    if type == 'data':
+      if self._data_device == 'gpu':
+        return
+
+      if self._data is not None:
+        self._gpu = nv.array(data=self._data, dtype=self._dtype, name=self._name)
+      else:
+        self._gpu = nv.array(shape=self._shape, nbytes=4 * self._size, dtype=self._dtype, name=self._name)
+
+      self._data_device = 'gpu'
+
+    if type == 'grad':
+      if self._grad_device == 'gpu':
+        return
+
+      if self._grad_seted and self._grad is not None:
+        self._gpu_grad = nv.array(data=self._grad, dtype=self._dtype, name=self._name + '_grad')
+      else:
+        self._gpu_grad = nv.array(shape=self._shape, nbytes=4 * self._size, dtype=self._dtype, name=self._name + '_grad')
+
+      self._grad_device = 'gpu'
+
+  
+  def to_cpu(self, type='data'):
+    if type == 'data':
+      if self._data_device == 'cpu':
+        return
+
+      self._data = self._gpu.numpy
+
+      self._data_device = 'cpu'
+
+    if type == 'grad':
+      if self._grad_device == 'cpu':
+        return
+
+      if self._grad_seted:
+        self._grad = self._gpu_grad.numpy
+      else:
+        self._grad = np.empty(shape=self._shape, dtype=self._dtype)
+
+      self._grad_device = 'cpu'
+
+
   @property
   def data(self):
+    # if self._gpu is not None:
+    #   self._data = self._gpu.numpy
+
+    # return self._data
+    self.to_cpu('data')
+
     return self._data
 
 
   @property
+  def gpu(self):
+    # if self._gpu is None:
+    #   if self._data is None:
+    #     self._gpu = nv.array(shape=self._shape, nbytes=4 * self._size, dtype=self._dtype)
+    #   else:
+    #     self._gpu = nv.array(data=self._data, dtype=self._dtype)
+    
+    # return self._gpu.gpu
+    self.to_gpu('data')
+
+    return self._gpu.gpu
+
+
+  @property
   def grad(self):
+    # if self._gpu_grad is not None and self._grad_seted:
+    #     self._grad = self._gpu_grad.numpy
+    # elif self._grad is None:
+    #   self._grad = np.empty_like(self._data)
+
+    # return self._grad
+    self.to_cpu('grad')
+
     if self._grad is None:
       self._grad = np.empty_like(self._data)
+
     return self._grad
+
+  
+  @property
+  def gpu_grad(self):
+    # if self._gpu_grad is None:
+    #   if not self._grad_seted:
+    #     self._gpu_grad = nv.array(shape=self.shape, nbytes=4 * self._size, dtype=self._dtype)
+    #   else:
+    #     self._gpu_grad = nv.array(data=self._grad, dtype=self._dtype)
+    
+    # return self._gpu_grad.gpu
+    self.to_gpu('grad')
+
+    return self._gpu_grad.gpu
 
   
   @property
@@ -190,8 +299,10 @@ class Variable(Blob):
   _id = 0
 
   def __init__(self, data, dtype=np.float32, name=None):
-    super(Variable, self).__init__(data=data, dtype=dtype, 
-                                   name=self._get_name(name), type='Variable')
+    super(Variable, self).__init__(data=data, 
+                                   dtype=dtype, 
+                                   name=self._get_name(name), 
+                                   type='Variable')
     variable_manager.add_variable(self)
 
   
@@ -199,7 +310,7 @@ class Variable(Blob):
     if not name:
       name = ''
     Variable._id += 1
-    return name + str(Variable._id)
+    return name + str(Variable._id) + '_Variable'
   
 
   def restore(self, data):
@@ -207,21 +318,26 @@ class Variable(Blob):
 
 
   def add_grad(self):
-    self._data -= self._grad
+    if self._data_device == self._grad_device == 'gpu':
+      self._gpu = self._gpu - self._gpu_grad
+    elif self._data_device == self._grad_device == 'cpu':
+      self._data -= self._grad
+    else:
+      assert 0, '{} ... {}'.format(self._data_device, self._grad_device)
+
     self._grad_seted = False
 
 
 class Tensor(Blob):
-  _id = 0
-
   def __init__(self, data=None, dtype=np.float32, name=None):
-    super(Tensor, self).__init__(data=data, dtype=dtype, 
-                                 name=self._get_name(name), type='Tensor')
+    super(Tensor, self).__init__(data=data,
+                                 dtype=dtype, 
+                                 name=self._get_name(name),
+                                 type='Tensor')
 
   
   def _get_name(self, name):
-    # if not name:
-    #   name = ''
-    # Tensor._id += 1
-    # return name + str(Tensor._id)
-    return name
+    if not name:
+      name = ''
+    manager.tensor_id += 1
+    return name + str(manager.tensor_id)

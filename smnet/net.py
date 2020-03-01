@@ -1,12 +1,20 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+from . import manager
+
 class Net(object):
-  def __init__(self):
+  def __init__(self, blob=None):
     self._layers = []
     self._backlayers = []
 
     self._tensor2layer = {}
     self._tensor2tensors = {}
+
+    self.blobs = set()
+    self.blobs_name = set()
+    if blob is not None:
+      self.blobs.add(blob)
+      self.blobs_name.add(blob.name)
 
   
   # def __del__(self):
@@ -29,6 +37,12 @@ class Net(object):
         assert other._tensor2tensors[tensor] == self._tensor2tensors[tensor]
       else:
         self._tensor2tensors[tensor] = other._tensor2tensors[tensor]
+
+    for blob in other.blobs:
+      if blob not in self.blobs:
+        self.blobs.add(blob)
+        assert blob.name not in self.blobs_name, '{} ... {}\n{} ... {}'.format(blob.name, self.blobs_name, id(blob), [id(b) for b in self.blobs])
+        self.blobs_name.add(blob.name)
   
 
   def add_layer(self, layer):
@@ -52,16 +66,15 @@ class Net(object):
     return len(self._layers) == 0
 
   
-  # def clear(self):
-    # self._layers = []
-    # self._backlayers = []
+  def clear(self):
+    self._layers = []
+    self._backlayers = []
 
-    # self._tensor2layer = {}
-    # self._tensor2tensors = {}    
+    self._tensor2layer = {}
+    self._tensor2tensors = {}    
 
-    # from .blob import Variable, Tensor
     # Variable._id = 0
-    # Tensor._id = 0
+    manager.tensor_id = 0
 
 
   def get_backlayers_variables(self, blobs):

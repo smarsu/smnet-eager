@@ -3,6 +3,7 @@
 import numpy as np
 
 from . import _math_utils as math_utils
+from .elementwise import GpuBinaryElementwise
 from ..layer import Layer
 
 class Add(Layer):
@@ -33,7 +34,13 @@ class Add(Layer):
     self.b.feed_grad(grad)
 
 
-def add(a, b, name=None):
+def add(a, b, name=None, device='gpu'):
+  # if device == 'gpu':
+  #   layer = GpuBinaryElementwise(a, b, 'Add', name)
+  # else:
+  #   layer = Add(a, b, name)
+
   layer = Add(a, b, name)
+
   layer.forward()
   return layer.res

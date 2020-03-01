@@ -27,7 +27,7 @@ class TestBase(object):
     print("---------------- {} test{} ----------------".format(self._op_name, self._test_time))
     self._test_time += 1
 
-    self._args = self._inputs_func(**params, loc=self._loc, scale=self._scale)
+    self._args_sm, self._args_bs = self._inputs_func(**params, loc=self._loc, scale=self._scale)
     sm_fst_res, sm_lst_res = self._run_sm_func()
     base_fst_res, base_lst_res = self._run_base_func()
 
@@ -43,9 +43,9 @@ class TestBase(object):
   
   def _run_sm_func(self):
     opt = sm.SGD(lr=self._lr, momentum=self._momentum, weight_decay=self._weight_decay)
-    args = self._args
+    args = self._args_sm
     for i in range(self._epoch):
-      res, args = self._sm_func(*args)
+      res, _ = self._sm_func(*args)
       if i == 0:
         fst_res = res.data.copy()
       
@@ -61,7 +61,7 @@ class TestBase(object):
     config = tf.ConfigProto() 
     config.gpu_options.allow_growth = True 
     with tf.Session(config=config) as sess:
-      args = self._args
+      args = self._args_bs
       y, _ = self._base_func(*args)
 
       loss = tf.reduce_sum(y)

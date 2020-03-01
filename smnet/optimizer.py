@@ -46,16 +46,16 @@ class SGD(Optimizer):
     for layer in self._backlayers:
       layer.backward()
 
-    if self._weight_decay != 0:
-      for varaible in self._variables:
-        varaible.set_grad(varaible.grad + self._lr * self._weight_decay * varaible.data)
+    # if self._weight_decay != 0:
+    #   for varaible in self._variables:
+    #     varaible.set_grad(varaible.grad + self._lr * self._weight_decay * varaible.data)
 
-    if self._momentum != 0:
-      for varaible in self._variables:
-        mmt = self._variable_momentum.get(varaible.name, 0)
-        mmt = mmt * self._momentum + varaible.grad
-        varaible.set_grad(mmt)
-        self._variable_momentum[varaible.name] = mmt
+    # if self._momentum != 0:
+    #   for varaible in self._variables:
+    #     mmt = self._variable_momentum.get(varaible.name, 0)
+    #     mmt = mmt * self._momentum + varaible.grad
+    #     varaible.set_grad(mmt)
+    #     self._variable_momentum[varaible.name] = mmt
 
     for varaible in self._variables:
       varaible.add_grad()
