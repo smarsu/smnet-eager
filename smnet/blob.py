@@ -310,8 +310,8 @@ class Variable(Blob):
     if not name:
       name = ''
     Variable._id += 1
-    return name + str(Variable._id) + '_Variable'
-  
+    return name + str(Variable._id)
+
 
   def restore(self, data):
     self.copy_from(data)
@@ -340,4 +340,4 @@ class Tensor(Blob):
     if not name:
       name = ''
     manager.tensor_id += 1
-    return name + str(manager.tensor_id)
+    return name + str(manager.tensor_id) + '_Tensor'

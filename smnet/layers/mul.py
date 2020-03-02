@@ -3,6 +3,7 @@
 import numpy as np
 
 from . import _math_utils as math_utils
+from .elementwise import GpuBinaryElementwise
 from ..layer import Layer
 
 class Mul(Layer):
@@ -33,8 +34,14 @@ class Mul(Layer):
     self.b.feed_grad(grad)
 
 
-def mul(a, b, name=None):
+def mul(a, b, name=None, device='gpu'):
+  # if device == 'gpu':
+  #   layer = GpuBinaryElementwise(a, b, 'Mul', name)
+  # else:
+  #   layer = Mul(a, b, name)
+
   layer = Mul(a, b, name)
+
   layer.forward()
   return layer.res
 

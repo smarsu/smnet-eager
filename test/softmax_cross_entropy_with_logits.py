@@ -7,28 +7,21 @@ import tensorflow as tf
 from _base import TestBase
 
 
-def sm_func(a, b):
-  a = sm.Tensor(a, dtype=np.float32, name='a')
-  b = sm.Variable(b, dtype=np.float32, name='b')
-  a1 = sm.transpose(a, (0, 2, 3, 1))
-  b1 = sm.transpose(b, (0, 2, 3, 1))
-  y = sm.softmax_cross_entropy_with_logits(labels=a1, logits=b1)
-  y = sm.transpose(y, (0, 3, 1, 2))
-  return y, (a.data, b.data)
+def sm_func(a, b, axis):
+  y = sm.softmax_cross_entropy_with_logits(labels=a, logits=b, axis=axis)
+  return y, ()
 
 
-def gt_func(a, b):
-  a = tf.constant(a, dtype=tf.float32)
-  b = tf.Variable(b, dtype=tf.float32)
-  # y = tf.nn.softmax_cross_entropy_with_logits_v2(labels=a, logits=b)
-  a = tf.transpose(a, (0, 2, 3, 1))
-  b = tf.transpose(b, (0, 2, 3, 1))
-  y = -a * tf.log(tf.nn.softmax(b))
-  y = tf.transpose(y, (0, 3, 1, 2))
+def gt_func(a, b, axis):
+  # y = tf.nn.softmax_cross_entropy_with_logits_v2(labels=a, logits=b, dim=axis)
+  b = b - tf.reduce_max(b, axis=axis, keep_dims=True)
+  b = tf.exp(b)
+  b = tf.log(b / tf.reduce_sum(b, axis=axis, keep_dims=True))
+  y = -a * b
   return y, tuple()
 
 
-def to_inputs(shape_a, shape_b, **params):
+def to_inputs(shape_a, shape_b, axis, **params):
   loc = params['loc']
   scale = params['scale']
 
@@ -42,7 +35,8 @@ def to_inputs(shape_a, shape_b, **params):
   a = np.random.normal(loc=loc, scale=scale, size=shape_a)
   b = np.random.normal(loc=loc, scale=scale, size=shape_b)
 
-  return a, b
+  return (sm.Variable(a, dtype=np.float32), sm.Variable(b, dtype=np.float32), axis), \
+         (tf.Variable(a, dtype=tf.float32), tf.Variable(b, dtype=tf.float32), axis), \
 
 
 if __name__ == '__main__':
@@ -51,7 +45,36 @@ if __name__ == '__main__':
   # test0
   shape_a = (1, 12, 13, 10)
   shape_b = (1, 12, 13, 10)
+  axis = 1
   sm_device = 'cpu'
   base_device = 'cpu'
 
-  testbase.test_case(shape_a=shape_a, shape_b=shape_b, sm_device=sm_device, base_device=base_device)
+  testbase.test_case(shape_a=shape_a, shape_b=shape_b, axis=axis, sm_device=sm_device, base_device=base_device)
+
+  # test1
+  shape_a = (1, 12, 13, 10)
+  shape_b = (1, 12, 13, 10)
+  axis = 3
+  sm_device = 'cpu'
+  base_device = 'cpu'
+
+  testbase.test_case(shape_a=shape_a, shape_b=shape_b, axis=axis, sm_device=sm_device, base_device=base_device)
+
+  # test2
+  shape_a = (1, 12, 13, 10)
+  shape_b = (1, 12, 13, 10)
+  axis = -1
+  sm_device = 'cpu'
+  base_device = 'cpu'
+
+  testbase.test_case(shape_a=shape_a, shape_b=shape_b, axis=axis, sm_device=sm_device, base_device=base_device)
+
+  # test3
+  shape_a = (32, 10)
+  shape_b = (32, 10)
+  axis = -1
+  sm_device = 'cpu'
+  base_device = 'cpu'
+
+  testbase.test_case(shape_a=shape_a, shape_b=shape_b, axis=axis, sm_device=sm_device, base_device=base_device)
+

@@ -3,7 +3,9 @@
 import numpy as np
 
 from . import _math_utils as math_utils
+from ..blob import Tensor
 from ..layer import Layer
+from ..kernels import SoftmaxKernel, BinaryElementwiseKernel
 
 
 class SoftmaxCrossEntropyWithLogits(Layer):
@@ -59,7 +61,49 @@ class SoftmaxCrossEntropyWithLogits(Layer):
     #                                                              1 if self.logits._grad_seted else 0)
 
 
-def softmax_cross_entropy_with_logits(labels, logits, axis=-1, name=None):
-  layer = SoftmaxCrossEntropyWithLogits(labels, logits, axis, name)
+class GpuSoftmaxCrossEntropyWithLogits(SoftmaxCrossEntropyWithLogits):
+  def __init__(self, labels, logits, axis=-1, name=None):
+    super(GpuSoftmaxCrossEntropyWithLogits, self).__init__(labels, logits, axis, name)
+
+
+  def __del__(self):
+    del self.log_sft
+    del self.softmax_kernel
+    del self.mul_kernel
+
+
+  def forward(self):
+    self.res.reshape(self.logits.shape)
+
+    self.log_sft = Tensor(dtype=self.logits.dtype)
+    self.log_sft.reshape(self.logits.shape)
+
+    self.softmax_kernel = SoftmaxKernel(self.logits, self.log_sft, self.axis, 1)  # 1 for CUDNN_SOFTMAX_LOG
+    self.softmax_kernel.forward(1)
+
+    self.mul_kernel = BinaryElementwiseKernel(self.labels, self.log_sft, self.res, 'Mul')
+    self.mul_kernel.forward()
+
+
+  def backward(self):
+    self.mul_kernel.backward()
+    self.softmax_kernel.backward(1)
+
+    self.logits._grad_seted = True
+    self.labels._grad_seted = True
+
+
+def softmax_cross_entropy_with_logits(labels, logits, axis=-1, name=None, device='gpu'):
+  if device == 'gpu':
+    layer = GpuSoftmaxCrossEntropyWithLogits(labels, logits, axis, name)
+  else:
+    layer = SoftmaxCrossEntropyWithLogits(labels, logits, axis, name)
+
+  # layer = SoftmaxCrossEntropyWithLogits(labels, logits, axis, name)
+
   layer.forward()
-  return layer.res
+
+  if device == 'gpu':
+    return -1 * layer.res
+  else:
+    return layer.res
