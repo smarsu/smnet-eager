@@ -47,7 +47,10 @@ class VariableManager(object):
     variable_dict = np.load(path)
 
     for name, data in variable_dict.items():
-      self._variables[name].copy_from(data)
+      if name in self._variables:
+        self._variables[name].copy_from(data)
+      else:
+        print("[smnet]: Not found variable {} int {}".format(name, path))
 
 
 variable_manager = VariableManager()

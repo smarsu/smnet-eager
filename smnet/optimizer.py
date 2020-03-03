@@ -11,15 +11,6 @@ class Optimizer(object):
     pass
 
 
-class SGD(Optimizer):
-  def __init__(self, lr=0.1, momentum=0.9, weight_decay=5e-4):
-    self._lr = lr
-    self._momentum = momentum
-    self._weight_decay = weight_decay
-
-    self._variable_momentum = {}
-
-  
   def _get_blobs(self, blobs):
     if isinstance(blobs, (Tensor, Variable)):
       return [blobs]
@@ -34,6 +25,27 @@ class SGD(Optimizer):
       
     self._backlayers, self._variables = net.get_backlayers_variables(
       blobs)
+
+
+  def save(self, path, tensors):
+    self._blobs = self._get_blobs(blobs)
+    self._get_backlayers_variables(self._blobs)
+
+    import os
+    os.makedirs(os.path.split(path)[0], exist_ok=True)
+
+    variable_dict = {variable.name: variable.data 
+                     for variable in self._variables}
+    np.savez(path, **variable_dict)
+
+
+class SGD(Optimizer):
+  def __init__(self, lr=0.1, momentum=0.9, weight_decay=5e-4):
+    self._lr = lr
+    self._momentum = momentum
+    self._weight_decay = weight_decay
+
+    self._variable_momentum = {}
 
   
   def minimum(self, blobs):
