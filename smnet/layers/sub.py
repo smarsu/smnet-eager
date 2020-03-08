@@ -3,6 +3,7 @@
 import numpy as np
 
 from . import _math_utils as math_utils
+from .elementwise import GpuBinaryElementwise
 from ..layer import Layer
 
 class Sub(Layer):
@@ -33,7 +34,11 @@ class Sub(Layer):
     self.b.feed_grad(-grad)
 
 
-def sub(a, b, name=None):
-  layer = Sub(a, b, name)
+def sub(a, b, name=None, device='gpu'):
+  if device == 'gpu':
+    layer = GpuBinaryElementwise(a, b, 'Sub', name)
+  else:
+    layer = Sub(a, b, name)
+
   layer.forward()
   return layer.res

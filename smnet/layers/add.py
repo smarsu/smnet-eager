@@ -35,12 +35,12 @@ class Add(Layer):
 
 
 def add(a, b, name=None, device='gpu'):
-  # if device == 'gpu':
-  #   layer = GpuBinaryElementwise(a, b, 'Add', name)
-  # else:
-  #   layer = Add(a, b, name)
+  if device == 'gpu':
+    layer = GpuBinaryElementwise(a, b, 'Add', name)
+  else:
+    layer = Add(a, b, name)
 
-  layer = Add(a, b, name)
+  # layer = Add(a, b, name)
 
   layer.forward()
   return layer.res

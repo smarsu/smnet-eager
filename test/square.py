@@ -8,13 +8,12 @@ from _base import TestBase
 
 
 def sm_func(a):
-  a = sm.Variable(a, dtype=np.float32, name='a')
+  sm.reset()
   y = sm.square(a)
   return y, (a.data, )
 
 
 def gt_func(a):
-  a = tf.Variable(a, dtype=tf.float32)
   y = a * a
   return y, tuple()
 
@@ -25,11 +24,12 @@ def to_inputs(shape_a, **params):
 
   a = np.random.normal(loc=loc, scale=scale, size=shape_a)
 
-  return (a, )
+  return (sm.Variable(a, dtype=np.float32), ), \
+         (tf.Variable(a, dtype=tf.float32), )
 
 
 if __name__ == '__main__':
-  testbase = TestBase('Square', sm_func, gt_func, to_inputs, lr=0.1)
+  testbase = TestBase('Square', sm_func, gt_func, to_inputs, lr=0.1, momentum=0., weight_decay=0.)
 
   # test0
   shape_a = (32, 10)

@@ -68,7 +68,7 @@ class Blob(object):
   def __init__(self, data=None, dtype=np.float32, name=None, type='Blob'):
     self._grad_seted = False
     self._dtype = dtype
-    self._data_device = self._grad_device = 'cpu'
+    self._data_device = self._grad_device = self._momentum_device = 'cpu'
 
     self._data = None
 
@@ -79,6 +79,7 @@ class Blob(object):
       self.copy_from(data)
 
     self._grad = None
+    self._momentum = None
 
     self._type = type
     self._name = name
@@ -124,6 +125,10 @@ class Blob(object):
     self._grad_seted = True
 
 
+  def set_momentum(self, momentum):
+    self._momentum = momentum
+
+
   def reshape(self, shape):
     self._shape = shape
     self._size = int(np.prod(shape))
@@ -152,6 +157,18 @@ class Blob(object):
 
       self._grad_device = 'gpu'
 
+    if type == 'momentum':
+      if self._momentum_device == 'gpu':
+        return
+
+      if self._momentum is not None:
+        self._gpu_momentum = nv.array(data=self._momentum, dtype=self._dtype, name=self._name + '_momentum')
+      else:
+        zeros = np.zeros(shape=self._shape, dtype=self._dtype)
+        self._gpu_momentum = nv.array(data=zeros, dtype=self._dtype, name=self._name + '_momentum')
+
+      self._momentum_device = 'gpu'
+
   
   def to_cpu(self, type='data'):
     if type == 'data':
@@ -172,6 +189,14 @@ class Blob(object):
         self._grad = np.empty(shape=self._shape, dtype=self._dtype)
 
       self._grad_device = 'cpu'
+
+    if type == 'momentum':
+      if self._momentum_device == 'cpu':
+        return
+
+      self._momentum = self._gpu_momentum.numpy
+
+      self._momentum_device = 'cpu'
 
 
   @property
@@ -227,6 +252,22 @@ class Blob(object):
     self.to_gpu('grad')
 
     return self._gpu_grad.gpu
+
+  
+  @property
+  def momentum(self):
+    self.to_cpu('momentum')
+
+    if self._momentum is None:
+      self._momentum = np.zeros(shape=self._shape, dtype=self._dtype)
+
+    return self._momentum
+
+
+  @property
+  def gpu_momentum(self):
+    self.to_gpu('momentum')
+    return self._gpu_momentum.gpu
 
   
   @property

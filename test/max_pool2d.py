@@ -34,7 +34,7 @@ def to_inputs(shape_value, ksize, strides, padding, **params):
 
 
 if __name__ == '__main__':
-  testbase = TestBase('Maxpool2D', sm_func, gt_func, to_inputs, lr=1., momentum=0., weight_decay=0., epoch=50)
+  testbase = TestBase('Maxpool2D', sm_func, gt_func, to_inputs, lr=1., momentum=0.9, weight_decay=0., epoch=50)
 
   # test0
   shape_value = [1, 1, 1, 1]

@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+from .activation import ActivationKernel
 from .broadcast import BroadcastKernel
 from .conv2d import Conv2DKernel
 from .elementwise import BinaryElementwiseKernel

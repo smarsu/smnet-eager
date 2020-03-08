@@ -37,7 +37,7 @@ def to_inputs(shape_input, shape_filter, strides, paddings, dilations, **params)
 
 
 if __name__ == '__main__':
-  testbase = TestBase('Conv2D', sm_func, gt_func, to_inputs, lr=0.01, momentum=0., weight_decay=0., epoch=10)
+  testbase = TestBase('Conv2D', sm_func, gt_func, to_inputs, lr=0.01, momentum=0.9, weight_decay=0., epoch=10)
 
   # test0
   shape_input = [2, 2, 4, 4]

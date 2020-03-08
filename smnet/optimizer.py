@@ -1,9 +1,11 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import ctypes
 import numpy as np
 
 from .blob import Tensor, Variable
 from .net import Net
+from .third_party import nvarray as nv
 
 
 class Optimizer(object):
@@ -27,7 +29,7 @@ class Optimizer(object):
       blobs)
 
 
-  def save(self, path, tensors):
+  def save(self, path, blobs):
     self._blobs = self._get_blobs(blobs)
     self._get_backlayers_variables(self._blobs)
 
@@ -62,12 +64,15 @@ class SGD(Optimizer):
     #   for varaible in self._variables:
     #     varaible.set_grad(varaible.grad + self._lr * self._weight_decay * varaible.data)
 
-    # if self._momentum != 0:
-    #   for varaible in self._variables:
-    #     mmt = self._variable_momentum.get(varaible.name, 0)
-    #     mmt = mmt * self._momentum + varaible.grad
-    #     varaible.set_grad(mmt)
-    #     self._variable_momentum[varaible.name] = mmt
+    if self._momentum != 0:
+      for varaible in self._variables:
+        if varaible._grad_device == 'cpu':
+          mmt = varaible.momentum * self._momentum + varaible.grad
+          varaible.set_grad(mmt)
+          varaible.set_momentum(mmt)
+        elif varaible._grad_device == 'gpu':
+          nv.libsmnv.Assign(varaible.size, varaible.gpu_grad, ctypes.c_float(self._momentum), varaible.gpu_momentum)
+          nv.libsmnv.Assign(varaible.size, varaible.gpu_momentum, ctypes.c_float(0), varaible.gpu_grad)
 
     for varaible in self._variables:
       varaible.add_grad()

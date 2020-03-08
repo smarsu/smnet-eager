@@ -8,6 +8,7 @@ from _base import TestBase
 
 
 def sm_func(a, b):
+  sm.reset()
   y = a + b
   return y, ()
 
@@ -29,7 +30,7 @@ def to_inputs(shape_a, shape_b, **params):
 
 
 if __name__ == '__main__':
-  testbase = TestBase('Add', sm_func, gt_func, to_inputs, momentum=0., weight_decay=0.)
+  testbase = TestBase('Add', sm_func, gt_func, to_inputs, momentum=0.9, weight_decay=0.)
 
   # test0
   shape_a = (32, 256)

@@ -24,7 +24,10 @@ class Square(Layer):
     self.a.feed_grad(self.res.grad * 2 * self.a.data)
 
 
-def square(a, name=None):
+def square(a, name=None, device='gpu'):
+  if device == 'gpu':
+    return a * a
+
   layer = Square(a, name)
   layer.forward()
   return layer.res

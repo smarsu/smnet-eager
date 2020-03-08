@@ -35,12 +35,12 @@ class Mul(Layer):
 
 
 def mul(a, b, name=None, device='gpu'):
-  # if device == 'gpu':
-  #   layer = GpuBinaryElementwise(a, b, 'Mul', name)
-  # else:
-  #   layer = Mul(a, b, name)
+  if device == 'gpu':
+    layer = GpuBinaryElementwise(a, b, 'Mul', name)
+  else:
+    layer = Mul(a, b, name)
 
-  layer = Mul(a, b, name)
+  # layer = Mul(a, b, name)
 
   layer.forward()
   return layer.res

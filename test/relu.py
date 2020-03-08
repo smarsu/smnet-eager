@@ -8,13 +8,11 @@ from _base import TestBase
 
 
 def sm_func(a):
-  a = sm.Variable(a, dtype=np.float32, name='a')
   y = sm.relu(a)
-  return y, (a.data, )
+  return y, ()
 
 
 def gt_func(a):
-  a = tf.Variable(a, dtype=tf.float32)
   y = tf.nn.relu(a)
   return y, tuple()
 
@@ -25,11 +23,12 @@ def to_inputs(shape_a, **params):
 
   a = np.random.normal(loc=loc, scale=scale, size=shape_a)
 
-  return (a, )
+  return (sm.Variable(a, dtype=np.float32), ), \
+         (tf.Variable(a, dtype=tf.float32), )
 
 
 if __name__ == '__main__':
-  testbase = TestBase('Relu', sm_func, gt_func, to_inputs, momentum=0)
+  testbase = TestBase('Relu', sm_func, gt_func, to_inputs, momentum=0.9)
 
   # test0
   shape_a = (32, 10)

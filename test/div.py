@@ -8,10 +8,9 @@ from _base import TestBase
 
 
 def sm_func(a, b):
-  a = sm.Variable(a, dtype=np.float32, name='a')
-  b = sm.Variable(b, dtype=np.float32, name='b')
+  sm.reset()
   y = a / b
-  return y, (a.data, b.data)
+  return y, ()
 
 
 def gt_func(a, b):
@@ -28,11 +27,12 @@ def to_inputs(shape_a, shape_b, **params):
   a = np.random.normal(loc=loc, scale=scale, size=shape_a)
   b = np.random.normal(loc=loc, scale=scale, size=shape_b)
 
-  return a, b
+  return (sm.Variable(a, dtype=np.float32), sm.Variable(b, dtype=np.float32)), \
+         (tf.Variable(a, dtype=tf.float32), tf.Variable(b, dtype=tf.float32))
 
 
 if __name__ == '__main__':
-  testbase = TestBase('Div', sm_func, gt_func, to_inputs, lr=1, momentum=0., weight_decay=0.)
+  testbase = TestBase('Div', sm_func, gt_func, to_inputs, lr=0.1, momentum=0., weight_decay=0.)
 
   # test0
   shape_a = (1, )
