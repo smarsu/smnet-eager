@@ -76,7 +76,7 @@ if __name__ == '__main__':
   shape_input = [1, 3, 224, 224]
   shape_filter = [10, 3, 3, 3]
   strides = [1, 1]
-  paddings = 'VALID'
+  paddings = 'SAME'
   dilations = [1, 1]
   sm_device = 'cpu'
   base_device = 'cpu'
@@ -87,7 +87,7 @@ if __name__ == '__main__':
   shape_input = [1, 32, 224, 224]
   shape_filter = [16, 32, 1, 1]
   strides = [1, 1]
-  paddings = 'VALID'
+  paddings = 'SAME'
   dilations = [1, 1]
   sm_device = 'cpu'
   base_device = 'cpu'

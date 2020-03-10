@@ -56,6 +56,8 @@ class Conv2D(Layer):
     ho = get_output_dim(hi, pad_t + pad_b, hf, hd, hs)
     wo = get_output_dim(wi, pad_l + pad_r, wf, wd, ws)
 
+    assert np.sum(np.array([n, co, ho, wo]) > 0) == 4, [n, co, ho, wo]
+
     return pad_t, pad_b, pad_l, pad_r, n, co, ho, wo
 
   

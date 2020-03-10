@@ -23,9 +23,10 @@ class Conv2D(object):
     self.name = name
 
     filter_shape = [out_channels, in_channels, kernel_size, kernel_size]
-    # God 0.001
+    limit = np.sqrt(6 / (in_channels * kernel_size * kernel_size + out_channels * kernel_size * kernel_size))
+    # God bless glorot_uniform
     self.weight_varaible = Variable(
-      np.random.normal(0., 0.001, filter_shape), name='/'.join([self.name, 'weight']))
+      np.random.uniform(-limit, limit, filter_shape), name='/'.join([self.name, 'weight']))
     if self.bias:
       self.bias_variable = Variable(
         np.zeros(shape=(1, out_channels, 1, 1)), name='/'.join([self.name, 'bias']))

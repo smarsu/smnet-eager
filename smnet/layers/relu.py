@@ -53,5 +53,7 @@ def relu(a, name=None, device='gpu'):
   else:
     layer = Relu(a, name)
 
+  # layer = Relu(a, name)
+
   layer.forward()
   return layer.res
