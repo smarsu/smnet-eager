@@ -30,7 +30,7 @@ std::vector<int> Shape2Strides(int *shape, int ndims) {
 }
 
 cudnnHandle_t CudnnHandle() {
-  static cudnnHandle_t handle = NULL;
+  static cudnnHandle_t handle = nullptr;
   if (!handle) {
     CALL_CUDNN(cudnnCreate(&handle)) << " Create cudnn handle failed."; 
   }
@@ -38,10 +38,18 @@ cudnnHandle_t CudnnHandle() {
 }
 
 void *CudaMalloc(size_t size) {
-  void *ptr = NULL;
+  void *ptr = nullptr;
   CALL_CUDA(cudaMalloc(&ptr, size)) << " cuda malloc " << size << " failed.";
   LOG(INFO) << "Malloc " << ptr << " ... " << size;
   return ptr;
+}
+
+void **CudaArray(const void **ptr, size_t num) {
+  size_t size = sizeof(void *) * num;
+
+  void *ret = CudaMalloc(size);
+  CudaMemcpyHostToDevice(ret, reinterpret_cast<const void *>(ptr), size);
+  return reinterpret_cast<void **>(ret);
 }
 
 void CudaFree(void *ptr) {

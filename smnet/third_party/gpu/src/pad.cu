@@ -69,7 +69,7 @@ bool PadConstNCHW(int y_size,
                   int pad_r,
                   float pad_value) {
   kernel::PadConstNCHW<float>
-    <<<CUDA_GET_BOLCKS(y_size), 
+    <<<CUDA_GET_BLOCKS(y_size), 
        CUDA_NUM_THREADS>>>(y_size, 
                            x, 
                            y, 
@@ -91,7 +91,7 @@ bool PadConstNCHWGradient(int x_size,
                           int pad_b,
                           int pad_r) {
   kernel::PadConstNCHWGradient
-    <<<CUDA_GET_BOLCKS(x_size), 
+    <<<CUDA_GET_BLOCKS(x_size), 
        CUDA_NUM_THREADS>>>(x_size,
                            dy,
                            beta,

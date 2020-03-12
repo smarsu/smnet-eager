@@ -7,6 +7,7 @@ from .elementwise import BinaryElementwiseKernel
 from .pad import PadConstNCHWKernel
 from .pool2d import Pool2DKernel
 from .softmax import SoftmaxKernel
+from .split import SplitKernel
 
 # #define CUDA_KERNEL_LOOP(i, n) \
 #   for (int i = blockIdx.x * blockDim.x + threadIdx.x; \

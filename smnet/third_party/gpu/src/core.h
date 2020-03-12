@@ -23,7 +23,7 @@
 
 #define CUDA_NUM_THREADS (1024)
 
-#define CUDA_GET_BOLCKS(n) (((n) + CUDA_NUM_THREADS - 1) / CUDA_NUM_THREADS)
+#define CUDA_GET_BLOCKS(n) (((n) + CUDA_NUM_THREADS - 1) / CUDA_NUM_THREADS)
 
 #define To3DIndex(x, y, z, X, Y, Z) \
   (((x) * (Y) + (y)) * (Z) + (z))
@@ -37,6 +37,8 @@ extern "C" {
 cudnnHandle_t CudnnHandle();
 
 void *CudaMalloc(size_t size);
+
+void **CudaArray(const void **ptr, size_t num);
 
 void CudaFree(void *ptr);
 

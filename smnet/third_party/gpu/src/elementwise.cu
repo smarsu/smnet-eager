@@ -123,7 +123,7 @@ extern "C" {
 #define REGISTER_C_UNARY_OP(name) \
 bool name(int N, const float *x, float beta, float *y) { \
     kernel::UnaryElementwise##name##Op<float> \
-      <<<CUDA_GET_BOLCKS(N), \
+      <<<CUDA_GET_BLOCKS(N), \
          CUDA_NUM_THREADS>>>(N, \
                              x, \
                              beta, \
@@ -141,7 +141,7 @@ REGISTER_C_UNARY_OP(Recip);
 bool name(int N, const float *x, const float *y, float beta, float *z, int size_x, int size_y) { \
   if (size_x > size_y) { \
     kernel::BinaryElementwiseCycleR##name##Op<float> \
-      <<<CUDA_GET_BOLCKS(N), \
+      <<<CUDA_GET_BLOCKS(N), \
          CUDA_NUM_THREADS>>>(N, \
                              x, \
                              y, \
@@ -151,7 +151,7 @@ bool name(int N, const float *x, const float *y, float beta, float *z, int size_
   } \
   else if (size_y > size_x) { \
     kernel::BinaryElementwiseCycleL##name##Op<float> \
-      <<<CUDA_GET_BOLCKS(N), \
+      <<<CUDA_GET_BLOCKS(N), \
          CUDA_NUM_THREADS>>>(N, \
                              x, \
                              y, \
@@ -161,7 +161,7 @@ bool name(int N, const float *x, const float *y, float beta, float *z, int size_
   } \
   else { \
     kernel::BinaryElementwise##name##Op<float> \
-      <<<CUDA_GET_BOLCKS(N), \
+      <<<CUDA_GET_BLOCKS(N), \
          CUDA_NUM_THREADS>>>(N, \
                              x, \
                              y, \
@@ -187,7 +187,7 @@ bool DivRGradient(int N,
                   float beta,
                   float *dy) {
   kernel::DivRGradient<float>
-  <<<CUDA_GET_BOLCKS(N),
+  <<<CUDA_GET_BLOCKS(N),
      CUDA_NUM_THREADS>>>(N,
                          x,
                          y,

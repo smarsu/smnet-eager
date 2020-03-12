@@ -4,6 +4,7 @@ import numpy as np
 
 from . import _math_utils as math_utils
 from ..layer import Layer
+from ..kernels.gpu import *
 
 
 class Split(Layer):
@@ -29,14 +30,19 @@ class Split(Layer):
     self.axis = axis
 
 
-  def forward(self):
+  def prepare(self):
     value_shape = self.value.shape
     dim = value_shape[self.axis]
 
     if isinstance(self.num_or_size_splits, int):
       self.splt = np.arange(1, self.num_or_size_splits + 1) * (dim // self.num_or_size_splits)
+      self.splt = self.splt.tolist()
     else:
       self.splt = math_utils.acc(self.num_or_size_splits)
+
+
+  def forward(self):
+    self.prepare()
 
     result = np.split(self.value.data, self.splt, axis=self.axis)[:-1]
     for tensor, value in zip(self.res, result):
@@ -53,7 +59,44 @@ class Split(Layer):
     self.value.feed_grad(np.concatenate(grads, axis=self.axis))
 
 
-def split(value, num_or_size_splits, axis=0, name=None):
-  layer = Split(value, num_or_size_splits, axis, name)
+class GpuSplit(Split):
+  def __init__(self,
+               value,
+               num_or_size_splits,
+               axis=0,
+               name=None):
+    super(GpuSplit, self).__init__(value, num_or_size_splits, axis, name)
+
+
+  def __del__(self):
+    del self.split_kernel
+
+  
+  def forward(self):
+    self.prepare()
+
+    splt = [0] + self.splt
+    for idx in range(len(self.res)):
+      shape = list(self.value.shape)
+      shape[self.axis] = splt[idx + 1] - splt[idx]
+      self.res[idx].reshape(shape)
+
+    self.split_kernel = SplitKernel(self.value, self.res, self.axis, self.splt)
+    self.split_kernel.forward()
+
+
+  def backward(self):
+    self.split_kernel.backward()
+    self.value._grad_seted = True
+
+
+def split(value, num_or_size_splits, axis=0, name=None, device='gpu'):
+  if device == 'gpu':
+    layer = GpuSplit(value, num_or_size_splits, axis, name)
+  else:
+    layer = Split(value, num_or_size_splits, axis, name)
+
+  # layer = Split(value, num_or_size_splits, axis, name)
+
   layer.forward()
   return layer.res

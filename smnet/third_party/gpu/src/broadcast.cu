@@ -53,7 +53,7 @@ bool Broadcast(int y_size,
                const int *x_shape,
                const int *y_shape) {
   kernel::Broadcast<float>
-    <<<CUDA_GET_BOLCKS(y_size),
+    <<<CUDA_GET_BLOCKS(y_size),
        CUDA_NUM_THREADS>>>(y_size,
                            x,
                            beta,

@@ -18,6 +18,7 @@ ctypes.c_int_p = ctypes.POINTER(ctypes.c_int)
 libsmnv = ctypes.cdll.LoadLibrary(get_smnv_lib_path())
 libsmnv.CudnnHandle.restype = ctypes.c_void_p
 libsmnv.CudaMalloc.restype = ctypes.c_void_p
+libsmnv.CudaArray.restype = ctypes.c_void_p
 
 cudnn_handle = ctypes.c_void_p(libsmnv.CudnnHandle())
 
@@ -90,6 +91,12 @@ class NvArray(object):
 
 
 gpu_memory = {}
+
+
+def list_array(nvarrs):
+  ptrs = (ctypes.c_void_p * len(nvarrs))(*[arr for arr in nvarrs])
+  dev_ptrs = ctypes.c_void_p(libsmnv.CudaArray(ptrs, len(nvarrs)))
+  return dev_ptrs
 
 
 def array(data=None, shape=None, nbytes=None, dtype=np.float32, name=None):

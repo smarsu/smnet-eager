@@ -8,14 +8,12 @@ from _base import TestBase
 
 
 def sm_func(a, num_or_size_splits, axis):
-  a = sm.Variable(a, dtype=np.float32, name='a')
   y = sm.split(a, num_or_size_splits, axis)
   y = sm.concat(y, axis)
-  return y, (a.data, num_or_size_splits, axis)
+  return y, ()
 
 
 def gt_func(a, num_or_size_splits, axis):
-  a = tf.Variable(a, dtype=tf.float32)
   y = tf.split(a, num_or_size_splits, axis)
   y = tf.concat(y, axis)
   return y, tuple()
@@ -27,7 +25,8 @@ def to_inputs(shape_a, num_or_size_splits, axis, **params):
 
   a = np.random.normal(loc=loc, scale=scale, size=shape_a)
 
-  return a, num_or_size_splits, axis
+  return (sm.Variable(a, dtype=np.float32), num_or_size_splits, axis), \
+         (tf.Variable(a, dtype=tf.float32), num_or_size_splits, axis)
 
 
 if __name__ == '__main__':
