@@ -4,5 +4,6 @@ include_directories(".")
 # set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-std=c++11;-O3;)
 
 file(GLOB SRC_LIST "*.cu")
+# cuda_add_library(smnv SHARED ${SRC_LIST} OPTIONS -std=c++11;-O3;--relocatable-device-code=true)
 cuda_add_library(smnv SHARED ${SRC_LIST} OPTIONS -std=c++11;-O3;)
 target_link_libraries(smnv libglog.so libcudnn.so)

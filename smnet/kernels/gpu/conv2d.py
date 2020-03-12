@@ -7,10 +7,11 @@ nv.libsmnv.CudnnConv2DCreate.restype = ctypes.c_void_p
 
 
 class Conv2DKernel(object):
-  def __init__(self, x, w, y, pads, strides, dilations):
+  def __init__(self, x, w, y, pads, strides, dilations, bias=None):
     self.x = x
     self.w = w
     self.y = y
+    self.bias = bias
 
     ni, ci, hi, wi = self.x.shape
     co, ci, hf, wf = self.w.shape
@@ -50,11 +51,19 @@ class Conv2DKernel(object):
                                   self.w.gpu,
                                   ctypes.c_float(0),
                                   self.y.gpu)
+    if self.bias is not None:
+      nv.libsmnv.CudnnConv2DForwardBias(nv.cudnn_handle,
+                                        self.params,
+                                        ctypes.c_float(1),
+                                        self.bias.gpu,
+                                        ctypes.c_float(1),
+                                        self.y.gpu)
 
   
   def backward(self):
     self.backward_data()
     self.backward_filter()
+    self.backward_bias()
 
 
   def backward_data(self):
@@ -75,3 +84,13 @@ class Conv2DKernel(object):
                                          self.y.gpu_grad,
                                          ctypes.c_float(1) if self.w._grad_seted else ctypes.c_float(0),
                                          self.w.gpu_grad)
+
+
+  def backward_bias(self):
+    if self.bias is not None:
+      nv.libsmnv.CudnnConv2DBackwardBias(nv.cudnn_handle,
+                                        self.params,
+                                        ctypes.c_float(1),
+                                        self.y.gpu_grad,
+                                        ctypes.c_float(1) if self.bias._grad_seted else ctypes.c_float(0),
+                                        self.bias.gpu_grad)

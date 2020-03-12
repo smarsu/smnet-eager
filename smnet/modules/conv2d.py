@@ -30,10 +30,12 @@ class Conv2D(object):
     if self.bias:
       self.bias_variable = Variable(
         np.zeros(shape=(1, out_channels, 1, 1)), name='/'.join([self.name, 'bias']))
+    else:
+      self.bias_variable = None
 
   
   def __call__(self, x):
-    y = conv2d(x, self.weight_varaible, self.strides, self.padding, self.dilations, name=self.name)
-    if self.bias:
-      y += self.bias_variable
+    y = conv2d(x, self.weight_varaible, self.strides, self.padding, self.dilations, self.bias_variable, name=self.name)
+    # if self.bias:
+    #   y += self.bias_variable
     return y

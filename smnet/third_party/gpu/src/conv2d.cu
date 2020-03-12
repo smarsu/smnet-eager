@@ -8,6 +8,7 @@ struct Conv2DParams {
   cudnnTensorDescriptor_t x_desc;
   cudnnFilterDescriptor_t w_desc;
   cudnnTensorDescriptor_t y_desc;
+  cudnnTensorDescriptor_t bias_desc;
   cudnnConvolutionDescriptor_t conv_desc;
 
   cudnnConvolutionFwdAlgo_t fwd_algo;
@@ -18,6 +19,12 @@ struct Conv2DParams {
 
   float fwd_alpha = 1;
   float fwd_beta = 0;
+
+  float fwd_bias_alpha = 1;
+  float fwd_bias_beta = 0;
+
+  float bwd_bias_alpha = 1;
+  float bwd_bias_beta = 0;
 
   float bwd_data_alpha = 1;
   float bwd_data_beta = 0;
@@ -31,6 +38,7 @@ void DestroyConv2DParams(Conv2DParams *params) {
   CALL_CUDNN(cudnnDestroyTensorDescriptor(params->x_desc));
   CALL_CUDNN(cudnnDestroyFilterDescriptor(params->w_desc));
   CALL_CUDNN(cudnnDestroyTensorDescriptor(params->y_desc));
+  CALL_CUDNN(cudnnDestroyTensorDescriptor(params->bias_desc));
   CALL_CUDNN(cudnnDestroyConvolutionDescriptor(params->conv_desc));
 
   delete params;
@@ -80,7 +88,16 @@ Conv2DParams *CudnnConv2DCreate(cudnnHandle_t cudnn_handle,
                                         co,
                                         ho,
                                         wo));
-                                      
+
+  CALL_CUDNN(cudnnCreateTensorDescriptor(&params->bias_desc));
+  CALL_CUDNN(cudnnSetTensor4dDescriptor(params->bias_desc,
+                                        CUDNN_TENSOR_NCHW,
+                                        CUDNN_DATA_FLOAT,
+                                        1,
+                                        co,
+                                        1,
+                                        1));
+
   CALL_CUDNN(cudnnCreateConvolutionDescriptor(&params->conv_desc));
   CALL_CUDNN(cudnnSetConvolution2dDescriptor(params->conv_desc,
                                              hp,
@@ -97,7 +114,8 @@ Conv2DParams *CudnnConv2DCreate(cudnnHandle_t cudnn_handle,
                                                  params->w_desc,
                                                  params->conv_desc,
                                                  params->y_desc,
-                                                 CUDNN_CONVOLUTION_FWD_NO_WORKSPACE,
+                                                //  CUDNN_CONVOLUTION_FWD_NO_WORKSPACE,
+                                                 CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
                                                  0,
                                                  &params->fwd_algo));
   // params->fwd_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
@@ -112,15 +130,16 @@ Conv2DParams *CudnnConv2DCreate(cudnnHandle_t cudnn_handle,
                                                      &size));
   params->size = std::max(params->size, size);
 
-  // CALL_CUDNN(cudnnGetConvolutionBackwardDataAlgorithm(cudnn_handle,
-  //                                                     params->w_desc,
-  //                                                     params->y_desc,
-  //                                                     params->conv_desc,
-  //                                                     params->x_desc,
-  //                                                     CUDNN_CONVOLUTION_BWD_DATA_NO_WORKSPACE,
-  //                                                     0,
-  //                                                     &params->bwd_data_algo));
-  params->bwd_data_algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
+  CALL_CUDNN(cudnnGetConvolutionBackwardDataAlgorithm(cudnn_handle,
+                                                      params->w_desc,
+                                                      params->y_desc,
+                                                      params->conv_desc,
+                                                      params->x_desc,
+                                                      // CUDNN_CONVOLUTION_BWD_DATA_NO_WORKSPACE,
+                                                      CUDNN_CONVOLUTION_BWD_DATA_PREFER_FASTEST,
+                                                      0,
+                                                      &params->bwd_data_algo));
+  // params->bwd_data_algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
   CALL_CUDNN(cudnnGetConvolutionBackwardDataWorkspaceSize(cudnn_handle,
                                                           params->w_desc,
                                                           params->y_desc,
@@ -130,15 +149,16 @@ Conv2DParams *CudnnConv2DCreate(cudnnHandle_t cudnn_handle,
                                                           &size));
   params->size = std::max(params->size, size);
 
-  // CALL_CUDNN(cudnnGetConvolutionBackwardFilterAlgorithm(cudnn_handle,
-  //                                                       params->x_desc,
-  //                                                       params->y_desc,
-  //                                                       params->conv_desc,
-  //                                                       params->w_desc,
-  //                                                       CUDNN_CONVOLUTION_BWD_FILTER_NO_WORKSPACE,
-  //                                                       0,
-  //                                                       &params->bwd_filter_algo));
-  params->bwd_filter_algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
+  CALL_CUDNN(cudnnGetConvolutionBackwardFilterAlgorithm(cudnn_handle,
+                                                        params->x_desc,
+                                                        params->y_desc,
+                                                        params->conv_desc,
+                                                        params->w_desc,
+                                                        // CUDNN_CONVOLUTION_BWD_FILTER_NO_WORKSPACE,
+                                                        CUDNN_CONVOLUTION_BWD_FILTER_PREFER_FASTEST,
+                                                        0,
+                                                        &params->bwd_filter_algo));
+  // params->bwd_filter_algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   CALL_CUDNN(cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnn_handle,
                                                             params->x_desc,
                                                             params->y_desc,
@@ -182,6 +202,24 @@ void CudnnConv2DForward(cudnnHandle_t cudnn_handle,
   LOG(INFO) << "Conv2D Forward ... "
             << " alpha: " <<  params->fwd_alpha
             << " beta: " << params->fwd_beta;
+}
+
+void CudnnConv2DForwardBias(cudnnHandle_t cudnn_handle,
+                            Conv2DParams *params,
+                            float alpha,
+                            const float *bias,
+                            float beta,
+                            float *y) {
+  params->fwd_bias_alpha = alpha;
+  params->fwd_bias_beta = beta;
+
+  CALL_CUDNN(cudnnAddTensor(cudnn_handle,
+                            &params->fwd_bias_alpha,
+                            params->bias_desc,
+                            bias,
+                            &params->fwd_bias_beta,
+                            params->y_desc,
+                            y));
 }
 
 void CudnnConv2DBackwardData(cudnnHandle_t cudnn_handle,
@@ -242,6 +280,24 @@ void CudnnConv2DBackwardFilter(cudnnHandle_t cudnn_handle,
   LOG(INFO) << "Conv2D Backward Filter ... "
             << " alpha: " <<  params->bwd_filter_alpha
             << " beta: " << params->bwd_filter_beta;
+}
+
+void CudnnConv2DBackwardBias(cudnnHandle_t cudnn_handle,
+                             Conv2DParams *params,
+                             float alpha,
+                             const void *dy,
+                             float beta,
+                             void *db) {
+  params->bwd_bias_alpha = alpha;
+  params->bwd_bias_beta = beta;
+
+  CALL_CUDNN(cudnnConvolutionBackwardBias(cudnn_handle,
+                                          &params->bwd_bias_alpha,
+                                          params->y_desc,
+                                          dy,
+                                          &params->bwd_bias_beta,
+                                          params->bias_desc,
+                                          db));
 }
 
 }  // extern "C"

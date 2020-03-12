@@ -8,12 +8,13 @@ np.random.seed(196)
 from _base import TestBase
 
 
-def sm_func(input, filter, strides, paddings, dilations):
-  y = sm.conv2d(input, filter, strides, paddings, dilations)
+def sm_func(input, filter, bias, strides, paddings, dilations):
+  sm.reset()
+  y = sm.conv2d(input, filter, strides, paddings, dilations, bias)
   return y, ()
 
 
-def gt_func(input, filter, strides, paddings, dilations):
+def gt_func(input, filter, bias, strides, paddings, dilations):
   input = tf.transpose(input, [0, 2, 3, 1])
   filter = tf.transpose(filter, [2, 3, 1, 0])
 
@@ -22,6 +23,7 @@ def gt_func(input, filter, strides, paddings, dilations):
 
   y = tf.nn.conv2d(input, filter, strides, paddings, dilations=dilations)
   y = tf.transpose(y, [0, 3, 1, 2])
+  y += bias
   return y, tuple()
 
 
@@ -31,13 +33,14 @@ def to_inputs(shape_input, shape_filter, strides, paddings, dilations, **params)
 
   input = np.random.normal(loc=loc, scale=scale, size=shape_input)
   filter = np.random.normal(loc=loc, scale=scale, size=shape_filter)
+  bias = np.random.normal(loc=loc, scale=scale, size=[1, shape_filter[0], 1, 1])
 
-  return (sm.Tensor(input, dtype=np.float32), sm.Variable(filter, dtype=np.float32), strides, paddings, dilations), \
-         (tf.constant(input, dtype=tf.float32), tf.Variable(filter, dtype=tf.float32), strides, paddings, dilations),
+  return (sm.Variable(input, dtype=np.float32), sm.Variable(filter, dtype=np.float32), sm.Variable(bias, dtype=np.float32), strides, paddings, dilations), \
+         (tf.Variable(input, dtype=tf.float32), tf.Variable(filter, dtype=tf.float32), tf.Variable(bias, dtype=tf.float32), strides, paddings, dilations),
 
 
 if __name__ == '__main__':
-  testbase = TestBase('Conv2D', sm_func, gt_func, to_inputs, lr=0.01, momentum=0.9, weight_decay=0., epoch=10)
+  testbase = TestBase('Conv2D', sm_func, gt_func, to_inputs, lr=0.01, momentum=0.9, weight_decay=0., epoch=5)
 
   # test0
   shape_input = [2, 2, 4, 4]

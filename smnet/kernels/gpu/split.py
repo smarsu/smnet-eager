@@ -18,7 +18,7 @@ class SplitKernel(object):
     self.y = nv.list_array([tensor.gpu for tensor in self.res])
 
     zeros = np.zeros(shape=self.x.shape, dtype=self.x.dtype)
-    self.zeros = nv.array(zeros, dtype=self.x.dtype)
+    self.zeros = nv.array(zeros, dtype=self.x.dtype, name='static/zeros')
 
     self.grad_concat = None
 
