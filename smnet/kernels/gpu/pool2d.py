@@ -47,11 +47,13 @@ class Pool2DKernel(object):
 
   
   def backward(self):
-    nv.libsmnv.CudnnPool2DBackward(nv.cudnn_handle,
-                                   self.params,
-                                   ctypes.c_float(1),
-                                   self.y.gpu,
-                                   self.y.gpu_grad,
-                                   self.x.gpu,
-                                   ctypes.c_float(1) if self.x._grad_seted else ctypes.c_float(0),
-                                   self.x.gpu_grad)
+    if self.x.need_grad:
+      nv.libsmnv.CudnnPool2DBackward(nv.cudnn_handle,
+                                     self.params,
+                                     ctypes.c_float(1),
+                                     self.y.gpu,
+                                     self.y.gpu_grad,
+                                     self.x.gpu,
+                                     ctypes.c_float(1) if self.x._grad_seted else ctypes.c_float(0),
+                                     self.x.gpu_grad)
+      self.x._grad_seted = True

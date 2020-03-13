@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import glog
 import numpy as np
 
 from ..layer import Layer
@@ -34,10 +35,14 @@ class Dropout(Layer):
 
   
   def backward(self):
-    self.x.feed_grad(self.res.grad * self.mask)
+    if self.x.need_grad:
+      self.x.feed_grad(self.res.grad * self.mask)
 
 
 def dropout(x, keep_prob, name=None):
   layer = Dropout(x, keep_prob, name)
   layer.forward()
+
+  glog.info('Run {} Dropout Layer ... <{}> -> <{}>'.format(
+    device, x.shape, layer.res.shape))
   return layer.res

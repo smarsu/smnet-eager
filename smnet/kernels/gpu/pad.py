@@ -29,11 +29,13 @@ class PadConstNCHWKernel(object):
   def backward(self):
     _, _, h, w = self.x.shape
 
-    nv.libsmnv.PadConstNCHWGradient(self.x.size,
-                                    self.y.gpu_grad,
-                                    ctypes.c_float(1) if self.x._grad_seted else ctypes.c_float(0),
-                                    self.x.gpu_grad,
-                                    h,
-                                    w,
-                                    self.pad_b,
-                                    self.pad_r)
+    if self.x.need_grad:
+      nv.libsmnv.PadConstNCHWGradient(self.x.size,
+                                      self.y.gpu_grad,
+                                      ctypes.c_float(1) if self.x._grad_seted else ctypes.c_float(0),
+                                      self.x.gpu_grad,
+                                      h,
+                                      w,
+                                      self.pad_b,
+                                      self.pad_r)
+      self.x._grad_seted = True

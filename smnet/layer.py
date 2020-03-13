@@ -25,7 +25,12 @@ class Layer(object):
 
   
   def _res_tensor(self, blobs):
-    res = Tensor(name=self._name)
+    need_grad = False
+    for blob in blobs:
+      if blob.need_grad is True:
+        need_grad = True
+        break
+    res = Tensor(need_grad=need_grad, name=self._name)
 
     # for blob in blobs:
     #   if not blob.net.empty():

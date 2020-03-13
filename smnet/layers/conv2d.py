@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import glog
 import math
 import numpy as np
 
@@ -96,27 +97,29 @@ class Conv2D(Layer):
   def backward(self):
     _, _, pad_input_h, pad_input_w = self.pad_input.shape
 
-    input_grad = np.empty(shape=self.pad_input.shape, dtype=np.float32)
-    math_utils.conv2d_backward_data(input_grad, 
-                                    self.res.grad, 
-                                    self.filter.data, 
-                                    self.strides, 
-                                    self.pad_shape, 
-                                    self.dilations, 
-                                    0.)
-
-    pad_t, pad_b, pad_l, pad_r = self.pad_shape
-    self.input.feed_grad(input_grad[:, :, pad_t:pad_input_h-pad_b, pad_l:pad_input_w-pad_r])
-
-    math_utils.conv2d_backward_filter(self.filter.grad, 
-                                      self.pad_input, 
+    if self.input.need_grad:
+      input_grad = np.empty(shape=self.pad_input.shape, dtype=np.float32)
+      math_utils.conv2d_backward_data(input_grad, 
                                       self.res.grad, 
+                                      self.filter.data, 
                                       self.strides, 
                                       self.pad_shape, 
-                                      self.dilations,
-                                      1 if self.filter._grad_seted else 0)
+                                      self.dilations, 
+                                      0.)
 
-    if self.bias is not None:
+      pad_t, pad_b, pad_l, pad_r = self.pad_shape
+      self.input.feed_grad(input_grad[:, :, pad_t:pad_input_h-pad_b, pad_l:pad_input_w-pad_r])
+
+    if self.filter.need_grad:
+      math_utils.conv2d_backward_filter(self.filter.grad, 
+                                        self.pad_input, 
+                                        self.res.grad, 
+                                        self.strides, 
+                                        self.pad_shape, 
+                                        self.dilations,
+                                        1 if self.filter._grad_seted else 0)
+
+    if self.bias is not None and self.bias.need_grad:
       self.bias.feed_grad(self.res.grad)
 
 
@@ -150,7 +153,7 @@ class GpuConv2D(Conv2D):
     addpad_h, addpad_w = (pad_t + pad_b) % 2, (pad_l + pad_r) % 2
     if addpad_h != 0 or addpad_w != 0:
       shape = [n, ci, hi + addpad_h, wi + addpad_w]
-      self.pad = Tensor(dtype=self.input.dtype)
+      self.pad = Tensor(dtype=self.input.dtype, need_grad=True)
       self.pad.reshape(shape)
       self.addpad_kernel = PadConstNCHWKernel(self.input, self.pad, addpad_h, addpad_w, 0)
 
@@ -181,11 +184,6 @@ class GpuConv2D(Conv2D):
     if self.addpad_kernel is not None:
       self.addpad_kernel.backward()
 
-    self.input._grad_seted = True
-    self.filter._grad_seted = True
-    if self.bias is not None:
-      self.bias._grad_seted = True
-
 
 def conv2d(input, 
            filter, 
@@ -205,4 +203,6 @@ def conv2d(input,
   # layer = Conv2D(input, filter, strides, padding, dilations, bias, name)
 
   layer.forward()
+  glog.info('Run {} Conv2D Layer ... <{}> -> <{}>'.format(
+    device, input.shape, layer.res.shape))
   return layer.res

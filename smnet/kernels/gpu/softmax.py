@@ -37,10 +37,12 @@ class SoftmaxKernel(object):
 
 
   def backward(self, alpha=1):
-    nv.libsmnv.CudnnSoftmaxBackward(nv.cudnn_handle,
-                                    self.params,
-                                    ctypes.c_float(alpha),
-                                    self.y.gpu,
-                                    self.y.gpu_grad,
-                                    ctypes.c_float(1) if self.x._grad_seted else ctypes.c_float(0),
-                                    self.x.gpu_grad)
+    if self.x.need_grad:
+      nv.libsmnv.CudnnSoftmaxBackward(nv.cudnn_handle,
+                                      self.params,
+                                      ctypes.c_float(alpha),
+                                      self.y.gpu,
+                                      self.y.gpu_grad,
+                                      ctypes.c_float(1) if self.x._grad_seted else ctypes.c_float(0),
+                                      self.x.gpu_grad)
+      self.x._grad_seted = True

@@ -47,7 +47,7 @@ class GpuBinaryElementwise(Layer):
     self.broadcast_b_kernel = None
 
     if self.a.size != int(np.prod(self.res_shape)):
-      self.broadcast_a = Tensor(dtype=self.a.dtype)
+      self.broadcast_a = Tensor(dtype=self.a.dtype, need_grad=True)
       self.broadcast_a.reshape(self.res_shape)
       self.broadcast_a_kernel = BroadcastKernel(self.a, 
                                                 self.broadcast_a, 
@@ -57,7 +57,7 @@ class GpuBinaryElementwise(Layer):
       self.broadcast_a_kernel.forward()
 
     if self.b.size != int(np.prod(self.res_shape)):
-      self.broadcast_b = Tensor(dtype=self.b.dtype)
+      self.broadcast_b = Tensor(dtype=self.b.dtype, need_grad=True)
       self.broadcast_b.reshape(self.res_shape)
       self.broadcast_b_kernel = BroadcastKernel(self.b,
                                                 self.broadcast_b,
@@ -79,6 +79,3 @@ class GpuBinaryElementwise(Layer):
       self.broadcast_a_kernel.backward()
     if self.broadcast_b_kernel is not None:
       self.broadcast_b_kernel.backward()
-  
-    self.a._grad_seted = True
-    self.b._grad_seted = True

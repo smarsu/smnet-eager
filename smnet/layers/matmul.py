@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import glog
 import numpy as np
 
 from ..layer import Layer
@@ -22,11 +23,16 @@ class Matmul(Layer):
 
   
   def backward(self):
-    self.a.feed_grad(np.matmul(self.res.grad, self.b.data.T))
-    self.b.feed_grad(np.matmul(self.a.data.T, self.res.grad))
+    if self.a.need_grad:
+      self.a.feed_grad(np.matmul(self.res.grad, self.b.data.T))
+    if self.b.need_grad:
+      self.b.feed_grad(np.matmul(self.a.data.T, self.res.grad))
 
 
-def matmul(a, b, name=None):
+def matmul(a, b, name=None, device='cpu'):
   layer = Matmul(a, b, name)
   layer.forward()
+
+  glog.info('Run {} Matmul Layer ... <{}, {}> -> <{}>'.format(
+    device, a.shape, b.shape, layer.res.shape))
   return layer.res

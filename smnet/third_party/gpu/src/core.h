@@ -60,7 +60,7 @@ struct CudaBuffer {
 
   void Resize(size_t size) {
     if (size > capacity_) {
-      CudaFree(data_);
+      // CudaFree(data_);
       data_ = CudaMalloc(size);
       capacity_ = size;
     }

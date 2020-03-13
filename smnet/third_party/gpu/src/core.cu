@@ -60,10 +60,12 @@ void CudaFree(void *ptr) {
 }
 
 void CudaMemcpyHostToDevice(void *dev, const void *host, size_t size) {
-  CALL_CUDA(cudaMemcpy(dev, host, size, cudaMemcpyHostToDevice));
+  CALL_CUDA(cudaMemcpyAsync(dev, host, size, cudaMemcpyHostToDevice));
+  LOG(INFO) << "Memcpy host " << host << " to device " << dev << " " << size << " bytes.";
 }
 
 void CudaMemcpyDeviceToHost(void *host, const void *dev, size_t size) {
+  CALL_CUDA(cudaMemcpyAsync(host, dev, size, cudaMemcpyDeviceToHost));
   CALL_CUDA(cudaDeviceSynchronize());
-  CALL_CUDA(cudaMemcpy(host, dev, size, cudaMemcpyDeviceToHost));
+  LOG(WARNING) << "Memcpy device " << dev << " to host " << host << " " << size << " bytes.";
 }

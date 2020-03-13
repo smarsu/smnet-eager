@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import glog
 import math
 import numpy as np
 
@@ -91,26 +92,27 @@ class Pool2D(Layer):
 
   
   def backward(self):
-    _, _, pad_input_h, pad_input_w = self.pad_value.shape
+    if self.value.need_grad:
+      _, _, pad_input_h, pad_input_w = self.pad_value.shape
 
-    value_grad = np.zeros(shape=self.pad_value.shape, dtype=self.value.dtype)
-    if self.mode == 'MAX':
-      math_utils.max_pool2d_backward(value_grad, 
-                                     self.res.grad, 
-                                     self.pad_value,
-                                     self.ksize, 
-                                     self.strides, 
-                                     0)
-    elif self.mode == 'AVG':
-      math_utils.avg_pool2d_backward(value_grad, 
-                                     self.res.grad, 
-                                     self.ksize, 
-                                     self.strides, 
-                                     self.pad_shape, 
-                                     0)
+      value_grad = np.zeros(shape=self.pad_value.shape, dtype=self.value.dtype)
+      if self.mode == 'MAX':
+        math_utils.max_pool2d_backward(value_grad, 
+                                      self.res.grad, 
+                                      self.pad_value,
+                                      self.ksize, 
+                                      self.strides, 
+                                      0)
+      elif self.mode == 'AVG':
+        math_utils.avg_pool2d_backward(value_grad, 
+                                      self.res.grad, 
+                                      self.ksize, 
+                                      self.strides, 
+                                      self.pad_shape, 
+                                      0)
 
-    pad_t, pad_b, pad_l, pad_r = self.pad_shape
-    self.value.feed_grad(value_grad[:, :, pad_t:pad_input_h-pad_b, pad_l:pad_input_w-pad_r])
+      pad_t, pad_b, pad_l, pad_r = self.pad_shape
+      self.value.feed_grad(value_grad[:, :, pad_t:pad_input_h-pad_b, pad_l:pad_input_w-pad_r])
 
 
 class GpuPool2D(Pool2D):
@@ -145,7 +147,7 @@ class GpuPool2D(Pool2D):
     addpad_h, addpad_w = (pad_t + pad_b) % 2, (pad_l + pad_r) % 2
     if addpad_h != 0 or addpad_w != 0:
       shape = [n, ci, hi + addpad_h, wi + addpad_w]
-      self.pad = Tensor(dtype=self.value.dtype)
+      self.pad = Tensor(dtype=self.value.dtype, need_grad=True)
       self.pad.reshape(shape)
       self.addpad_kernel = PadConstNCHWKernel(self.value, self.pad, addpad_h, addpad_w, constant_values)
 
@@ -173,8 +175,6 @@ class GpuPool2D(Pool2D):
     if self.addpad_kernel is not None:
       self.addpad_kernel.backward()
 
-    self.value._grad_seted = True
-
 
 def max_pool2d(value,
                ksize,
@@ -187,9 +187,10 @@ def max_pool2d(value,
   else:
     layer = Pool2D(value, ksize, strides, padding, 'MAX', name)
 
-  # layer = Pool2D(value, ksize, strides, padding, 'MAX', name)
-
   layer.forward()
+
+  glog.info('Run {} MaxPool2D Layer ... <{}> -> <{}>'.format(
+    device, value.shape, layer.res.shape))
   return layer.res
 
 
@@ -204,7 +205,8 @@ def avg_pool2d(value,
   else:
     layer = Pool2D(value, ksize, strides, padding, 'AVG', name)
 
-  # layer = Pool2D(value, ksize, strides, padding, 'AVG', name)
-
   layer.forward()
+
+  glog.info('Run {} AvgPool2D Layer ... <{}> -> <{}>'.format(
+    device, value.shape, layer.res.shape))
   return layer.res

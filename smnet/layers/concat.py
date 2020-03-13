@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Right Reserved.
 
+import glog
 import numpy as np
 
 from ..layer import Layer
@@ -27,10 +28,14 @@ class Concat(Layer):
     splt = np.split(self.res.grad, size_splits, self.axis)[:-1]
 
     for tensor, value in zip(self.values, splt):
-      tensor.feed_grad(value)
+      if tensor.need_grad:
+        tensor.feed_grad(value)
 
 
 def concat(values, axis=-1, name=None):
   layer = Concat(values, axis, name)
   layer.forward()
+
+  glog.info('Run {} Concat Layer ... <{}> -> <{}>'.format(
+    device, [v.shape for v in values], layer.res.shape))
   return layer.res

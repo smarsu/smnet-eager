@@ -197,7 +197,7 @@ void CudnnConv2DForward(cudnnHandle_t cudnn_handle,
                                      &params->fwd_beta,
                                      params->y_desc,
                                      y));
-  CALL_CUDA(cudaDeviceSynchronize());
+  // CALL_CUDA(cudaDeviceSynchronize());
 
   LOG(INFO) << "Conv2D Forward ... "
             << " alpha: " <<  params->fwd_alpha
@@ -245,7 +245,7 @@ void CudnnConv2DBackwardData(cudnnHandle_t cudnn_handle,
                                           &params->bwd_data_beta,
                                           params->x_desc,
                                           dx));
-  CALL_CUDA(cudaDeviceSynchronize());
+  // CALL_CUDA(cudaDeviceSynchronize());
 
   LOG(INFO) << "Conv2D Backward Data ... "
             << " alpha: " <<  params->bwd_data_alpha
@@ -275,7 +275,7 @@ void CudnnConv2DBackwardFilter(cudnnHandle_t cudnn_handle,
                                             &params->bwd_filter_beta,
                                             params->w_desc,
                                             dw));
-  CALL_CUDA(cudaDeviceSynchronize());
+  // CALL_CUDA(cudaDeviceSynchronize());
 
   LOG(INFO) << "Conv2D Backward Filter ... "
             << " alpha: " <<  params->bwd_filter_alpha

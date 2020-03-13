@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import glog
 import numpy as np
 
 from . import _math_utils as math_utils
@@ -50,13 +51,14 @@ class Split(Layer):
 
 
   def backward(self):
-    grads = []
-    for i in range(len(self.res)):
-      if self.res[i]._grad_seted:
-        grads.append(self.res[i].grad)
-      else:
-        grads.append(np.zeros(self.res[i].shape, self.res[i].dtype))
-    self.value.feed_grad(np.concatenate(grads, axis=self.axis))
+    if self.value.need_grad:
+      grads = []
+      for i in range(len(self.res)):
+        if self.res[i]._grad_seted:
+          grads.append(self.res[i].grad)
+        else:
+          grads.append(np.zeros(self.res[i].shape, self.res[i].dtype))
+      self.value.feed_grad(np.concatenate(grads, axis=self.axis))
 
 
 class GpuSplit(Split):
@@ -87,7 +89,6 @@ class GpuSplit(Split):
 
   def backward(self):
     self.split_kernel.backward()
-    self.value._grad_seted = True
 
 
 def split(value, num_or_size_splits, axis=0, name=None, device='gpu'):
@@ -96,7 +97,8 @@ def split(value, num_or_size_splits, axis=0, name=None, device='gpu'):
   else:
     layer = Split(value, num_or_size_splits, axis, name)
 
-  # layer = Split(value, num_or_size_splits, axis, name)
-
   layer.forward()
+
+  glog.info('Run {} Split Layer ... <{}> -> <{}>'.format(
+    device, value.shape, [tensor.shape for tensor in layer.res]))
   return layer.res

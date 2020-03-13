@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import glog
 import numpy as np
 
 from ..layer import Layer
@@ -64,9 +65,14 @@ class BatchNormalization(Layer):
   
 
   def backward(self):
-    self.scale.feed_grad(np.sum(self.res.grad * self.norm, axis=self.brd_axis, keepdims=True))
-    self.offset.feed_grad(np.sum(self.res.grad, axis=self.brd_axis, keepdims=True))
-    self.x.feed_grad(self.res.grad * self.scale.data)
+    if self.scale.need_grad:
+      self.scale.feed_grad(np.sum(self.res.grad * self.norm, axis=self.brd_axis, keepdims=True))
+
+    if self.offset.need_grad:
+      self.offset.feed_grad(np.sum(self.res.grad, axis=self.brd_axis, keepdims=True))
+
+    if self.x.need_grad:
+      self.x.feed_grad(self.res.grad * self.scale.data)
 
 
 def batch_normalization(inputs,
@@ -81,4 +87,7 @@ def batch_normalization(inputs,
                         name=None):
   layer = BatchNormalization(inputs, mean, variance, offset, scale, axis, momentum, epsilon, training, name)
   layer.forward()
+
+  glog.info('Run {} BatchNorm Layer ... <{}> -> <{}>'.format(
+    device, inputs.shape, layer.res.shape))
   return layer.res

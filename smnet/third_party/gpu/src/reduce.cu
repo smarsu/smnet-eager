@@ -128,7 +128,7 @@ void CudnnReduceForward(cudnnHandle_t cudnn_handle,
                                params->y_desc,
                                y));
 
-  CALL_CUDA(cudaDeviceSynchronize());
+  // CALL_CUDA(cudaDeviceSynchronize());
 }
 
 }  // extern "C"

@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import glog
 import numpy as np
 
 from . import _math_utils as math_utils
@@ -33,32 +34,34 @@ class SoftmaxCrossEntropyWithLogits(Layer):
   def backward(self):
     grad = self.res.grad
 
-    self.labels.feed_grad(grad * self.p)
+    if self.labels.need_grad:
+      self.labels.feed_grad(grad * self.p)
 
-    # 1. Prepare data
-    labels = self.labels.data
-    softmax_logits = self.softmax_logits
+    if self.logits.need_grad:
+      # 1. Prepare data
+      labels = self.labels.data
+      softmax_logits = self.softmax_logits
 
-    lgt_grad = np.zeros(shape=self.logits.shape, dtype=self.logits.dtype)
+      lgt_grad = np.zeros(shape=self.logits.shape, dtype=self.logits.dtype)
 
-    softmax_logits = np.where(
-      softmax_logits>self._clip_value, softmax_logits, 0)
-    # 2. Compute and add grad
-    for i in range(labels.shape[-1]):
-        softmax_logits_i = np.copy(softmax_logits)
-        softmax_logits_i[..., i] -= 1
-        lgt_grad += grad[..., i:i+1] * labels[..., i:i+1] * softmax_logits_i
+      softmax_logits = np.where(
+        softmax_logits>self._clip_value, softmax_logits, 0)
+      # 2. Compute and add grad
+      for i in range(labels.shape[-1]):
+          softmax_logits_i = np.copy(softmax_logits)
+          softmax_logits_i[..., i] -= 1
+          lgt_grad += grad[..., i:i+1] * labels[..., i:i+1] * softmax_logits_i
 
-    self.logits.feed_grad(lgt_grad)
+      self.logits.feed_grad(lgt_grad)
 
-    # softmax_logits = np.where(
-    #     self.softmax_logits>self._clip_value, self.softmax_logits, 0)
-    # math_utils.softmax_cross_entropy_with_logits_backward_logits(self.logits.grad,
-    #                                                              grad,
-    #                                                              self.labels.data,
-    #                                                              softmax_logits,
-    #                                                              self.axis,
-    #                                                              1 if self.logits._grad_seted else 0)
+      # softmax_logits = np.where(
+      #     self.softmax_logits>self._clip_value, self.softmax_logits, 0)
+      # math_utils.softmax_cross_entropy_with_logits_backward_logits(self.logits.grad,
+      #                                                              grad,
+      #                                                              self.labels.data,
+      #                                                              softmax_logits,
+      #                                                              self.axis,
+      #                                                              1 if self.logits._grad_seted else 0)
 
 
 class GpuSoftmaxCrossEntropyWithLogits(SoftmaxCrossEntropyWithLogits):
@@ -75,7 +78,7 @@ class GpuSoftmaxCrossEntropyWithLogits(SoftmaxCrossEntropyWithLogits):
   def forward(self):
     self.res.reshape(self.logits.shape)
 
-    self.log_sft = Tensor(dtype=self.logits.dtype)
+    self.log_sft = Tensor(dtype=self.logits.dtype, need_grad=True)
     self.log_sft.reshape(self.logits.shape)
 
     self.softmax_kernel = SoftmaxKernel(self.logits, self.log_sft, self.axis, 1)  # 1 for CUDNN_SOFTMAX_LOG
@@ -89,9 +92,6 @@ class GpuSoftmaxCrossEntropyWithLogits(SoftmaxCrossEntropyWithLogits):
     self.mul_kernel.backward()
     self.softmax_kernel.backward(1)
 
-    self.logits._grad_seted = True
-    self.labels._grad_seted = True
-
 
 def softmax_cross_entropy_with_logits(labels, logits, axis=-1, name=None, device='gpu'):
   if device == 'gpu':
@@ -102,6 +102,9 @@ def softmax_cross_entropy_with_logits(labels, logits, axis=-1, name=None, device
   # layer = SoftmaxCrossEntropyWithLogits(labels, logits, axis, name)
 
   layer.forward()
+
+  glog.info('Run {} SoftmaxCrossEntropy Layer ... <{}> -> <{}>'.format(
+    device, logits.shape, layer.res.shape))
 
   if device == 'gpu':
     return -1 * layer.res

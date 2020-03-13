@@ -31,8 +31,14 @@ class VariableManager(object):
     import os
     os.makedirs(os.path.split(path)[0], exist_ok=True)
 
-    variable_dict = {name: variable.data 
-                     for name, variable in self._variables.items()}
+    variable_dict = {}
+    for name, variable in self._variables.items():
+      variable_dict[name] = variable.data
+      if variable.have_momentum():
+        variable_dict[name + '_momentum'] = variable.momentum
+
+    # variable_dict = {name: variable.data 
+    #                  for name, variable in self._variables.items()}
     np.savez(path, **variable_dict)
 
 
@@ -49,6 +55,8 @@ class VariableManager(object):
     for name, data in variable_dict.items():
       if name in self._variables:
         self._variables[name].copy_from(data)
+        if name + '_momentum' in variable_dict:
+          self._variables[name].copy_momentum_from(variable_dict[name + '_momentum'])
       else:
         print("[smnet]: Not found variable {} int {}".format(name, path))
 
@@ -65,10 +73,11 @@ def restore(path):
 
 
 class Blob(object):
-  def __init__(self, data=None, dtype=np.float32, name=None, type='Blob'):
+  def __init__(self, data=None, dtype=np.float32, need_grad=None, name=None, type='Blob'):
     self._grad_seted = False
     self._dtype = dtype
     self._data_device = self._grad_device = self._momentum_device = 'cpu'
+    self._need_grad = need_grad
 
     self._data = None
 
@@ -105,6 +114,11 @@ class Blob(object):
     self.feed(data)
 
   
+  def copy_momentum_from(self, data):
+    data = np.array(data, dtype=self._dtype, ndmin=1)
+    self._momentum = data
+
+  
   def feed(self, data):
     self._data = data
     self._shape = data.shape
@@ -132,6 +146,10 @@ class Blob(object):
   def reshape(self, shape):
     self._shape = shape
     self._size = int(np.prod(shape))
+
+
+  def have_momentum(self):
+    return self._momentum is not None
 
 
   def to_gpu(self, type='data'):
@@ -286,6 +304,11 @@ class Blob(object):
 
   
   @property
+  def need_grad(self):
+    return self._need_grad
+
+  
+  @property
   def name(self):
     return self._name
 
@@ -342,9 +365,10 @@ class Blob(object):
 class Variable(Blob):
   _id = 0
 
-  def __init__(self, data, dtype=np.float32, name=None):
+  def __init__(self, data, dtype=np.float32, need_grad=True, name=None):
     super(Variable, self).__init__(data=data, 
                                    dtype=dtype, 
+                                   need_grad=need_grad,
                                    name=self._get_name(name), 
                                    type='Variable')
     variable_manager.add_variable(self)
@@ -373,9 +397,10 @@ class Variable(Blob):
 
 
 class Tensor(Blob):
-  def __init__(self, data=None, dtype=np.float32, name=None):
+  def __init__(self, data=None, dtype=np.float32, need_grad=False, name=None):
     super(Tensor, self).__init__(data=data,
                                  dtype=dtype, 
+                                 need_grad=need_grad,
                                  name=self._get_name(name),
                                  type='Tensor')
 

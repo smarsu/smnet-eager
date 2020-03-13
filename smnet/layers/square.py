@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import glog
 import numpy as np
 
 from ..layer import Layer
@@ -21,10 +22,14 @@ class Square(Layer):
 
 
   def backward(self):
-    self.a.feed_grad(self.res.grad * 2 * self.a.data)
+    if self.a.need_grad:
+      self.a.feed_grad(self.res.grad * 2 * self.a.data)
 
 
 def square(a, name=None, device='gpu'):
+  glog.info('Run {} Square Layer ... <{}> -> <{}>'.format(
+    device, a.shape, a.shape))
+
   if device == 'gpu':
     return a * a
 

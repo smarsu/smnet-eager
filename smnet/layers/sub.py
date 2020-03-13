@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import glog
 import numpy as np
 
 from . import _math_utils as math_utils
@@ -22,16 +23,18 @@ class Sub(Layer):
     self.res.feed(self.a.data - self.b.data)
 
   
-  def backward(self):    
-    axis = math_utils.get_reduce_axis(self.a.shape, self.res.shape)
-    grad = np.sum(self.res.grad, axis=axis, keepdims=True)
-    grad = grad.reshape(self.a.shape)
-    self.a.feed_grad(grad)
+  def backward(self): 
+    if self.a.need_grad:   
+      axis = math_utils.get_reduce_axis(self.a.shape, self.res.shape)
+      grad = np.sum(self.res.grad, axis=axis, keepdims=True)
+      grad = grad.reshape(self.a.shape)
+      self.a.feed_grad(grad)
 
-    axis = math_utils.get_reduce_axis(self.b.shape, self.res.shape)
-    grad = np.sum(self.res.grad, axis=axis, keepdims=True)
-    grad = grad.reshape(self.b.shape)
-    self.b.feed_grad(-grad)
+    if self.b.need_grad:
+      axis = math_utils.get_reduce_axis(self.b.shape, self.res.shape)
+      grad = np.sum(self.res.grad, axis=axis, keepdims=True)
+      grad = grad.reshape(self.b.shape)
+      self.b.feed_grad(-grad)
 
 
 def sub(a, b, name=None, device='gpu'):
@@ -41,4 +44,7 @@ def sub(a, b, name=None, device='gpu'):
     layer = Sub(a, b, name)
 
   layer.forward()
+
+  glog.info('Run {} Sub Layer ... <{}, {}> -> <{}>'.format(
+    device, a.shape, b.shape, layer.res.shape))
   return layer.res

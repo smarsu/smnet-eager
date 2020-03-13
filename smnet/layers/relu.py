@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import glog
 import numpy as np
 
 from ..layer import Layer
@@ -22,8 +23,9 @@ class Relu(Layer):
 
 
   def backward(self):
-    keep = self.a.data > 0
-    self.a.feed_grad(self.res.grad * keep)
+    if self.a.need_grad:
+      keep = self.a.data > 0
+      self.a.feed_grad(self.res.grad * keep)
 
 
 class GpuRelu(Relu):
@@ -44,7 +46,6 @@ class GpuRelu(Relu):
   
   def backward(self):
     self.act_kernel.backward()
-    self.a._grad_seted = True
 
 
 def relu(a, name=None, device='gpu'):
@@ -53,7 +54,8 @@ def relu(a, name=None, device='gpu'):
   else:
     layer = Relu(a, name)
 
-  # layer = Relu(a, name)
-
   layer.forward()
+
+  glog.info('Run {} Relu Layer ... <{}> -> <{}>'.format(
+    device, a.shape, layer.res.shape))
   return layer.res

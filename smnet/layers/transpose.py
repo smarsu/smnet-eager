@@ -1,5 +1,6 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
+import glog
 import numpy as np
 
 from ..layer import Layer
@@ -29,10 +30,14 @@ class Transpose(Layer):
 
 
   def backward(self):
-    self.x.feed_grad(np.transpose(self.res.grad, self.inv_perm))
+    if self.x.need_grad:
+      self.x.feed_grad(np.transpose(self.res.grad, self.inv_perm))
 
 
-def transpose(x, perm, name=None):
+def transpose(x, perm, name=None, device='cpu'):
   layer = Transpose(x, perm, name)
   layer.forward()
+
+  glog.info('Run {} Transpose Layer ... <{}, {}> -> <{}>'.format(
+    device, x.shape, layer.res.shape))
   return layer.res

@@ -55,10 +55,12 @@ class BroadcastKernel(object):
 
 
   def backward(self):
-    nv.libsmnv.CudnnReduceForward(nv.cudnn_handle,
-                                  self.params,
-                                  ctypes.c_void_p(0),
-                                  ctypes.c_float(1),
-                                  self.y.gpu_grad,
-                                  ctypes.c_float(1) if self.x._grad_seted else ctypes.c_float(0),
-                                  self.x.gpu_grad)
+    if self.x.need_grad:
+      nv.libsmnv.CudnnReduceForward(nv.cudnn_handle,
+                                    self.params,
+                                    ctypes.c_void_p(0),
+                                    ctypes.c_float(1),
+                                    self.y.gpu_grad,
+                                    ctypes.c_float(1) if self.x._grad_seted else ctypes.c_float(0),
+                                    self.x.gpu_grad)
+      self.x._grad_seted = True

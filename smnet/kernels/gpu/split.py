@@ -45,20 +45,23 @@ class SplitKernel(object):
 
 
   def backward(self):
-    grads = []
-    for i in range(len(self.res)):
-      if self.res[i]._grad_seted:
-        grads.append(self.res[i].gpu_grad)
-      else:
-        grads.append(self.zeros.gpu)
-    self.grad_concat = nv.list_array(grads)
-    
-    nv.libsmnv.Concat(self.x.size,
-                      self.grad_concat,
-                      ctypes.c_float(1) if self.x._grad_seted else ctypes.c_float(0),
-                      self.x.gpu_grad,
-                      self.out_dim,
-                      self.dim,
-                      self.inner_dim,
-                      len(self.splt),
-                      self.split_dims.gpu)
+    if self.x.need_grad:
+      grads = []
+      for i in range(len(self.res)):
+        if self.res[i]._grad_seted:
+          grads.append(self.res[i].gpu_grad)
+        else:
+          grads.append(self.zeros.gpu)
+      self.grad_concat = nv.list_array(grads)
+      
+      nv.libsmnv.Concat(self.x.size,
+                        self.grad_concat,
+                        ctypes.c_float(1) if self.x._grad_seted else ctypes.c_float(0),
+                        self.x.gpu_grad,
+                        self.out_dim,
+                        self.dim,
+                        self.inner_dim,
+                        len(self.splt),
+                        self.split_dims.gpu)
+      
+      self.x._grad_seted = True
