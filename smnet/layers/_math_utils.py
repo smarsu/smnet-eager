@@ -37,6 +37,21 @@ def broadcast_shape(shape1, shape2):
   return shape, shape1, shape2
 
 
+def infer_shape(shape1, shape2):
+  shape2 = list(shape2)
+
+  size1 = np.prod(shape1)
+  size2 = np.prod([1 if dim == -1 else dim for dim in shape2])
+  infer_dim = size1 // size2
+  if infer_dim == 1:
+    return shape2
+  else:
+    for idx in range(len(shape2)):
+      if shape2[idx] == -1:
+        shape2[idx] = infer_dim
+        return shape2
+
+
 def get_reduce_axis(shape, res_shape):
   shape = list(shape)
   res_shape = list(res_shape)

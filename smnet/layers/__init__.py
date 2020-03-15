@@ -10,6 +10,7 @@ from .matmul import matmul
 from .mul import mul
 from .pool import max_pool2d, avg_pool2d
 from .relu import relu
+from .reshape import reshape
 from .sigmoid import sigmoid
 from .softmax_cross_entropy_with_logits import softmax_cross_entropy_with_logits
 from .split import split
