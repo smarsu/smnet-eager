@@ -28,6 +28,9 @@
 #define To3DIndex(x, y, z, X, Y, Z) \
   (((x) * (Y) + (y)) * (Z) + (z))
 
+#define To2DIndex(x, y, X, Y) \
+  ((x) * (Y) + (y))
+
 std::string ToString(int *shape, int ndims);
 
 std::vector<int> Shape2Strides(int *shape, int ndims);
