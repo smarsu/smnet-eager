@@ -5,6 +5,8 @@ import numpy as np
 
 from ..layer import Layer
 
+from ..third_party import nvarray as nv
+
 
 class Square(Layer):
   def __init__(self, a, name):
@@ -26,9 +28,12 @@ class Square(Layer):
       self.a.feed_grad(self.res.grad * 2 * self.a.data)
 
 
-def square(a, name=None, device='gpu'):
+def square(a, name=None, device='cpu'):
+  if nv.with_cuda is True:
+    device = 'gpu'
+
   glog.info('Run {} Square Layer ... <{}> -> <{}>'.format(
-    device, a.shape, a.shape))
+    device, np.array(a).shape, np.array(a).shape))
 
   if device == 'gpu':
     return a * a

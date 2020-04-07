@@ -7,7 +7,7 @@ import evaluation
 
 
 class TestBase(object):
-  def __init__(self, op_name, sm_func, base_func, inputs_func, lr=0.1, momentum=0.9, weight_decay=5e-4, epoch=200, loc=0., scale=1., bp=True):
+  def __init__(self, op_name, sm_func, base_func, inputs_func, lr=0.1, momentum=0.9, weight_decay=5e-4, epoch=200, loc=0., scale=1., bp=True, thr=0.01):
     self._op_name = op_name
     self._base_func = base_func
     self._sm_func = sm_func
@@ -19,6 +19,7 @@ class TestBase(object):
     self._loc = loc
     self._scale = scale
     self._bp = bp
+    self._thr = thr
 
     self._test_time = 0
 
@@ -35,9 +36,9 @@ class TestBase(object):
       '{} {} {} {}'.format(sm_fst_res.shape, sm_lst_res.shape, base_fst_res.shape, base_lst_res.shape)
 
     print('compare first result:')
-    evaluation.compare_all(sm_fst_res.flatten(), base_fst_res.flatten())
+    assert(evaluation.compare_all(sm_fst_res.flatten(), base_fst_res.flatten(), thr=self._thr))
     print('compare last result:')
-    evaluation.compare_all(sm_lst_res.flatten(), base_lst_res.flatten())
+    assert(evaluation.compare_all(sm_lst_res.flatten(), base_lst_res.flatten(), thr=self._thr))
     print()
 
   
@@ -48,6 +49,8 @@ class TestBase(object):
       res, _ = self._sm_func(*args)
       if i == 0:
         fst_res = res.data.copy()
+      if not self._bp:
+        break
       
       opt.minimum(res)
     
@@ -78,6 +81,8 @@ class TestBase(object):
         res = sess.run(y)
         if i == 0:
           fst_res = res
+        if not self._bp:
+          break
 
         sess.run(opt)
 

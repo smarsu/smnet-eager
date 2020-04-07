@@ -3,6 +3,7 @@
 import numpy as np
 
 from .third_party import nvarray as nv
+from .third_party import cnarray as cn
 from .net import Net
 from . import manager
 
@@ -84,6 +85,9 @@ class Blob(object):
     self._gpu = None
     self._gpu_grad = None
 
+    self._mlu = None
+    self._mlu_grad = None
+
     if data is not None:
       self.copy_from(data)
 
@@ -98,10 +102,6 @@ class Blob(object):
 
   def __del__(self):
     pass
-    # if self._gpu is not None:
-    #   del self._gpu
-    # if self._gpu_grad is not None:
-    #   del self._gpu_grad
   
 
   def copy_from(self, data):
@@ -157,6 +157,8 @@ class Blob(object):
       if self._data_device == 'gpu':
         return
 
+      self.to_cpu(type)
+
       if self._data is not None:
         self._gpu = nv.array(data=self._data, dtype=self._dtype, name=self._name)
       else:
@@ -167,6 +169,8 @@ class Blob(object):
     if type == 'grad':
       if self._grad_device == 'gpu':
         return
+
+      self.to_cpu(type)
 
       if self._grad_seted and self._grad is not None:
         self._gpu_grad = nv.array(data=self._grad, dtype=self._dtype, name=self._name + '_grad')
@@ -179,6 +183,8 @@ class Blob(object):
       if self._momentum_device == 'gpu':
         return
 
+      self.to_cpu(type)
+
       if self._momentum is not None:
         self._gpu_momentum = nv.array(data=self._momentum, dtype=self._dtype, name=self._name + '_momentum')
       else:
@@ -187,13 +193,58 @@ class Blob(object):
 
       self._momentum_device = 'gpu'
 
+
+  def to_mlu(self, type='data'):
+    if type == 'data':
+      if self._data_device == 'mlu':
+        return
+
+      self.to_cpu(type)
+
+      if self._data is not None:
+        self._mlu = cn.array(data=self._data, dtype=self._dtype, name=self._name)
+      else:
+        self._mlu = cn.array(shape=self._shape, nbytes=4 * self._size, dtype=self._dtype, name=self._name)
   
+      self._data_device = 'mlu'
+
+    if type == 'grad':
+      if self._grad_device == 'mlu':
+        return
+
+      self.to_cpu(type)
+
+      if self._grad_seted and self._grad is not None:
+        self._mlu_grad = cn.array(data=self._grad, dtype=self._dtype, name=self._name + '_grad')
+      else:
+        self._mlu_grad = cn.array(shape=self._shape, nbytes=4 * self._size, dtype=self._dtype, name=self._name + '_grad')
+
+      self._grad_device = 'mlu'
+
+    if type == 'momentum':
+      if self._momentum_device == 'mlu':
+        return
+
+      self._to_cpu(type)
+
+      if self._momentum is not None:
+        self._mlu_momentum = cn.array(data=self._momentum, dtype=self._dtype, name=self._name + '_momentum')
+      else:
+        zeros = np.zeros(shape=self._shape, dtype=self._dtype)
+        self._mlu_momentum = cn.array(data=zeros, dtype=self._dtype, name=self._name + '_momentum')
+
+      self._momentum_device = 'mlu'
+
+
   def to_cpu(self, type='data'):
     if type == 'data':
       if self._data_device == 'cpu':
         return
 
-      self._data = self._gpu.numpy
+      if self._data_device == 'gpu':
+        self._data = self._gpu.numpy
+      elif self._data_device == 'mlu':
+        self._data = self._mlu.numpy
 
       self._data_device = 'cpu'
 
@@ -202,7 +253,10 @@ class Blob(object):
         return
 
       if self._grad_seted:
-        self._grad = self._gpu_grad.numpy
+        if self._grad_device == 'gpu':
+          self._grad = self._gpu_grad.numpy
+        elif self._grad_device == 'mlu':
+          self._grad = self._mlu_grad.numpy
       else:
         self._grad = np.empty(shape=self._shape, dtype=self._dtype)
 
@@ -212,7 +266,10 @@ class Blob(object):
       if self._momentum_device == 'cpu':
         return
 
-      self._momentum = self._gpu_momentum.numpy
+      if self._momentum_device == 'gpu':
+        self._momentum = self._gpu_momentum.numpy
+      elif self._momentum_device == 'mlu':
+        self._momentum = self._mlu_momentum.numpy
 
       self._momentum_device = 'cpu'
 
@@ -240,6 +297,12 @@ class Blob(object):
     self.to_gpu('data')
 
     return self._gpu.gpu
+
+  
+  @property
+  def mlu(self):
+    self.to_mlu('data')
+    return self._mlu.gpu
 
 
   @property
@@ -273,6 +336,12 @@ class Blob(object):
 
   
   @property
+  def mlu_grad(self):
+    self.to_mlu('grad')
+    return self._mlu_grad.gpu
+
+  
+  @property
   def momentum(self):
     self.to_cpu('momentum')
 
@@ -286,6 +355,12 @@ class Blob(object):
   def gpu_momentum(self):
     self.to_gpu('momentum')
     return self._gpu_momentum.gpu
+
+  
+  @property
+  def mlu_momentum(self):
+    self._to_mlu('momentum')
+    return self._mlu_momentum.gpu
 
   
   @property

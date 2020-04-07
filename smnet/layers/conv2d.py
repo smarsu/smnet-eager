@@ -7,8 +7,14 @@ import numpy as np
 from . import _math_utils as math_utils
 from ..blob import Tensor
 from ..layer import Layer
-from ..kernels.gpu import *
+
 from ..third_party import nvarray as nv
+if nv.with_cuda is True:
+  from ..kernels.gpu import *
+
+from ..third_party import cnarray as cn
+if cn.with_mlu is True:
+  from ..kernels.mlu import MluAddPadKernel, MluConv2DKernel
 
 
 def get_output_dim(input_dim, pad, filter_dim, dilation, stride):
@@ -185,6 +191,83 @@ class GpuConv2D(Conv2D):
       self.addpad_kernel.backward()
 
 
+class MluConv2D(Conv2D):
+  def __init__(self,
+               input,
+               filter,
+               strides,
+               padding,
+               dilations=[1, 1],
+               bias=None,
+               name=None):
+    super(MluConv2D, self).__init__(input, filter, strides, padding, dilations, bias, name=name)
+
+
+  def prepare(self):
+    n, hi, wi, ci = self.input.shape
+    co, hf, wf, ci = self.filter.shape
+
+    hs, ws = self.strides
+    hd, wd = self.dilations
+
+    if self.padding == 'VALID':
+      pad_t, pad_b, pad_l, pad_r = 0, 0, 0, 0
+    elif self.padding == 'SAME':
+      ho, wo = math.ceil(hi / hs), math.ceil(wi / ws)
+      hp = hs * (ho - 1) + (hf - 1) * hd + 1 - hi
+      wp = ws * (wo - 1) + (wf - 1) * wd + 1 - wi
+      pad_t, pad_b, pad_l, pad_r = hp // 2, hp - hp // 2, wp // 2, wp - wp // 2
+    else:
+      (pad_t, pad_b), (pad_l, pad_r) = self.padding
+
+    ho = get_output_dim(hi, pad_t + pad_b, hf, hd, hs)
+    wo = get_output_dim(wi, pad_l + pad_r, wf, wd, ws)
+
+    assert np.sum(np.array([n, co, ho, wo]) > 0) == 4, [n, co, ho, wo]
+
+    return pad_t, pad_b, pad_l, pad_r, n, co, ho, wo
+
+
+  def forward(self):
+    n, hi, wi, ci = self.input.shape
+    pad_t, pad_b, pad_l, pad_r, n, co, ho, wo = self.prepare()
+
+    self.res.reshape([n, ho, wo, co])
+
+    self.addpad_kernel = None
+    self.pad = None
+
+    if sum([pad_t, pad_b, pad_l, pad_r]) != 0:
+      shape = [n, hi + pad_t + pad_b, wi + pad_l + pad_r, ci]
+      self.pad = Tensor(dtype=self.input.dtype, need_grad=True)
+      self.pad.reshape(shape)
+      self.addpad_kernel = MluAddPadKernel(self.input, self.pad, pad_t, pad_b, pad_l, pad_r, 0)
+
+      self.conv2d_kernel = MluConv2DKernel(self.pad, 
+                                           self.filter, 
+                                           self.res, 
+                                           (0, 0), 
+                                           self.strides, 
+                                           self.dilations,
+                                           self.bias)
+    else:
+      self.conv2d_kernel = MluConv2DKernel(self.input, 
+                                           self.filter, 
+                                           self.res, 
+                                           ((pad_t + pad_b) // 2, (pad_l + pad_r) // 2), 
+                                           self.strides, 
+                                           self.dilations,
+                                           self.bias)
+
+    if self.addpad_kernel is not None:
+      self.addpad_kernel.forward()
+    self.conv2d_kernel.forward()
+
+  
+  def backward(self):
+    pass
+
+
 def conv2d(input, 
            filter, 
            strides, 
@@ -192,17 +275,22 @@ def conv2d(input,
            dilations=[1, 1], 
            bias=None,
            name=None,
-           device='gpu'):
+           device='cpu'):
+  if nv.with_cuda is True:
+    device = 'gpu'
+  elif cn.with_mlu is True:
+    device = 'mlu'
+
   if device == 'gpu':
     layer = GpuConv2D(input, filter, strides, padding, dilations, bias, name)
+  elif device == 'mlu':
+    layer = MluConv2D(input, filter, strides, padding, dilations, bias, name)
   elif device == 'cpu':
     layer = Conv2D(input, filter, strides, padding, dilations, bias, name)
   else:
     raise ValueError('Unsupport device {} for Conv2D'.format(device))
 
-  # layer = Conv2D(input, filter, strides, padding, dilations, bias, name)
-
   layer.forward()
   glog.info('Run {} Conv2D Layer ... <{}> -> <{}>'.format(
-    device, input.shape, layer.res.shape))
+    device, layer.input.shape, layer.res.shape))
   return layer.res

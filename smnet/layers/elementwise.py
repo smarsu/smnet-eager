@@ -5,7 +5,10 @@ import numpy as np
 from . import _math_utils as math_utils
 from ..blob import Tensor
 from ..layer import Layer
-from ..kernels import *
+
+from ..third_party import nvarray as nv
+if nv.with_cuda is True:
+  from ..kernels import *
 
 
 class GpuBinaryElementwise(Layer):

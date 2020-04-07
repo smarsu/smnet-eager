@@ -1,6 +1,7 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
 from .add import add
+from .addpad import addpad
 from .batch_normalization import batch_normalization
 from .concat import concat
 from .conv2d import conv2d

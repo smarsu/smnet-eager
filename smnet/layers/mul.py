@@ -4,8 +4,12 @@ import glog
 import numpy as np
 
 from . import _math_utils as math_utils
-from .elementwise import GpuBinaryElementwise
 from ..layer import Layer
+
+from ..third_party import nvarray as nv
+if nv.with_cuda is True:
+  from .elementwise import GpuBinaryElementwise
+
 
 class Mul(Layer):
   def __init__(self, a, b, name=None):
@@ -37,7 +41,10 @@ class Mul(Layer):
       self.b.feed_grad(grad)
 
 
-def mul(a, b, name=None, device='gpu'):
+def mul(a, b, name=None, device='cpu'):
+  if nv.with_cuda is True:
+    device = 'gpu'
+
   if device == 'gpu':
     layer = GpuBinaryElementwise(a, b, 'Mul', name)
   else:

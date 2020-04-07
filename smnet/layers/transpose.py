@@ -39,5 +39,5 @@ def transpose(x, perm, name=None, device='cpu'):
   layer.forward()
 
   glog.info('Run {} Transpose Layer ... <{}, {}> -> <{}>'.format(
-    device, x.shape, layer.res.shape))
+    device, layer.x.shape, layer.res.shape))
   return layer.res

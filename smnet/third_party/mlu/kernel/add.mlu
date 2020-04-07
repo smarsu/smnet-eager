@@ -1,0 +1,12 @@
+// Copyright (c) 2020 smarsu. All Rights Reseved.
+
+#include "add.h"
+
+#define NRAM_REMAIN_SIZE (1024 + 128)
+#define NRAM_BUF_SIZE (512 * 1024 - NRAM_REMAIN_SIZE)
+
+__mlu_entry__ void add_entry(float *C, float *A, float *B, int size) {
+  __nram__ int8_t nram_buf[NRAM_BUF_SIZE];
+
+  add((float *)C, (float *)A, (float *)B, size, NRAM_BUF_SIZE, (float *)nram_buf);
+}

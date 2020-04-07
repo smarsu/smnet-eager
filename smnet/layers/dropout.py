@@ -5,6 +5,9 @@ import numpy as np
 
 from ..layer import Layer
 
+from ..third_party import nvarray as nv
+
+
 class Dropout(Layer):
   def __init__(self, x, keep_prob, name=None):
     super(Dropout, self).__init__(name=name)
@@ -39,10 +42,13 @@ class Dropout(Layer):
       self.x.feed_grad(self.res.grad * self.mask)
 
 
-def dropout(x, keep_prob, name=None):
+def dropout(x, keep_prob, name=None, device='cpu'):
+  if nv.with_cuda is True:
+    device = 'gpu'
+
   layer = Dropout(x, keep_prob, name)
   layer.forward()
 
   glog.info('Run {} Dropout Layer ... <{}> -> <{}>'.format(
-    device, x.shape, layer.res.shape))
+    device, layer.x.shape, layer.res.shape))
   return layer.res

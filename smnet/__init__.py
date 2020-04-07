@@ -6,6 +6,7 @@ from .blob import Tensor, Variable, save, restore
 from .optimizer import *
 
 from .third_party import nvarray as nv
+from .third_party import cnarray as cn
 from . import manager
 
 import os

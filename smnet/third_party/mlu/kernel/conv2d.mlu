@@ -1,0 +1,72 @@
+// Copyright (c) 2020 smarsu. All Rights Reserved.
+
+#include "conv2d.h"
+
+__mlu_entry__ void conv2d_entry(void *x,
+                                void *w,
+                                void *bias,
+                                void *y,
+                                int no,
+                                int co,
+                                int ho,
+                                int wo,
+                                int ni,
+                                int ci,
+                                int hi,
+                                int wi,
+                                int kf,
+                                int cf,
+                                int hf,
+                                int wf,
+                                int hs,
+                                int ws,
+                                int pt,
+                                int pb,
+                                int pl,
+                                int pr,
+                                bool with_bias,
+                                bool with_relu,
+                                DataType dtype,
+                                DataType itype) {
+  __nram__ int8_t nram_buf[NRAM_BUF_SIZE];
+  __mlu_shared__ int8_t sram_buf[SRAM_BUF_SIZE];
+  __wram__ int8_t wram_buf[WRAM_BUF_SIZE];
+
+#define CONV2D(T, IT) \
+    conv2d((T *)x, \
+           (T *)w, \
+           (T *)bias, \
+           (T *)y, \
+           no, \
+           co, \
+           ho, \
+           wo, \
+           ni, \
+           ci, \
+           hi, \
+           wi, \
+           kf, \
+           cf, \
+           hf, \
+           wf, \
+           hs, \
+           ws, \
+           pt, \
+           pb, \
+           pl, \
+           pr, \
+           with_bias, \
+           with_relu, \
+           NRAM_BUF_SIZE, \
+           SRAM_BUF_SIZE, \
+           WRAM_BUF_SIZE, \
+           (T *)nram_buf, \
+           (T *)sram_buf, \
+           (IT *)wram_buf);
+
+  if (dtype == DataType::kFloat32 && itype == DataType::kInt16) {
+    CONV2D(float, int16_t);
+  }
+
+#undef CONV2D
+}

@@ -4,7 +4,10 @@ import glog
 import numpy as np
 
 from ..layer import Layer
-from ..kernels import ActivationKernel
+
+from ..third_party import nvarray as nv
+if nv.with_cuda is True:
+  from ..kernels import ActivationKernel
 
 
 class Relu(Layer):
@@ -48,7 +51,10 @@ class GpuRelu(Relu):
     self.act_kernel.backward()
 
 
-def relu(a, name=None, device='gpu'):
+def relu(a, name=None, device='cpu'):
+  if nv.with_cuda is True:
+    device = 'gpu'
+
   if device == 'gpu':
     layer = GpuRelu(a, name)
   else:
@@ -57,5 +63,5 @@ def relu(a, name=None, device='gpu'):
   layer.forward()
 
   glog.info('Run {} Relu Layer ... <{}> -> <{}>'.format(
-    device, a.shape, layer.res.shape))
+    device, layer.a.shape, layer.res.shape))
   return layer.res

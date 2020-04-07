@@ -1,11 +1,18 @@
 # Copyright (c) 2020 smarsu. All Rights Reserved.
 
 import glog
+import ctypes
 import numpy as np
 
 from . import _math_utils as math_utils
-from .elementwise import GpuBinaryElementwise
 from ..layer import Layer
+
+from ..third_party import nvarray
+if nvarray.with_cuda is True:
+  from .elementwise import GpuBinaryElementwise
+
+from ..third_party import cnarray as cn
+
 
 class Add(Layer):
   def __init__(self, a, b, name=None):
@@ -37,15 +44,30 @@ class Add(Layer):
       self.b.feed_grad(grad)
 
 
-def add(a, b, name=None, device='gpu'):
+class MluAdd(Add):
+  def __init__(self, a, b, name):
+    super(MluAdd, self).__init__(a, b, name)
+
+  
+  def forward(self):
+    self.res.reshape(self.a.shape)
+    cn.libsmcn.Add(self.a.mlu, self.b.mlu, self.res.mlu, ctypes.c_size_t(self.res.size))
+
+
+def add(a, b, name=None, device='cpu'):
+  if nvarray.with_cuda is True:
+    device = 'gpu'
+  elif cn.with_mlu is True:
+    device = 'mlu'
+
   if device == 'gpu':
     layer = GpuBinaryElementwise(a, b, 'Add', name)
+  elif device == 'mlu':
+    layer = MluAdd(a, b, name)
   else:
     layer = Add(a, b, name)
 
-  # layer = Add(a, b, name)
-
   layer.forward()
   glog.info('Run {} Add Layer ... <{}, {}> -> <{}>'.format(
-    device, a.shape, b.shape, layer.res.shape))
+    device, layer.a.shape, layer.b.shape, layer.res.shape))
   return layer.res

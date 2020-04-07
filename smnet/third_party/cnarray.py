@@ -5,22 +5,24 @@ import ctypes
 import numpy as np
 
 
-def get_smnv_lib_path():
+def get_smcn_lib_path():
   rlpt = osp.realpath(__file__)
   rldir = osp.split(osp.split(rlpt)[0])[0]
-  lbpt = osp.join(rldir, 'third_party', 'lib', 'libsmnv.so')
+  lbpt = osp.join(rldir, 'third_party', 'lib', 'libsmcn.so')
   return lbpt
 
-try:
+if True:
+# try:
   ctypes.c_float_p = ctypes.POINTER(ctypes.c_float)
   ctypes.c_int_p = ctypes.POINTER(ctypes.c_int)
 
-  libsmnv = ctypes.cdll.LoadLibrary(get_smnv_lib_path())
-  libsmnv.CudnnHandle.restype = ctypes.c_void_p
-  libsmnv.CudaMalloc.restype = ctypes.c_void_p
-  libsmnv.CudaArray.restype = ctypes.c_void_p
+  libsmcn = ctypes.cdll.LoadLibrary(get_smcn_lib_path())
+  libsmcn.SetDevice(0)
+  libsmcn.MluStream.restype = ctypes.c_void_p
+  libsmcn.MluMalloc.restype = ctypes.c_void_p
+  libsmcn.MluArray.restype = ctypes.c_void_p
 
-  cudnn_handle = ctypes.c_void_p(libsmnv.CudnnHandle())
+  mlu_stream = ctypes.c_void_p(libsmcn.MluStream())
 
 
   def c_data(data):
@@ -42,7 +44,7 @@ try:
         self._shape = self._data.shape
         self._nbytes = self._data.nbytes
 
-      self._dev_ptr = ctypes.c_void_p(libsmnv.CudaMalloc(ctypes.c_size_t(self._nbytes)))
+      self._dev_ptr = ctypes.c_void_p(libsmcn.MluMalloc(ctypes.c_size_t(self._nbytes)))
 
       if self._data is not None:
         self.feed(self._data)
@@ -52,12 +54,12 @@ try:
     
     def __del__(self):
       # Here remove host ptr can solve oom?
-      libsmnv.CudaFree(self._dev_ptr)
+      libsmcn.MluFree(self._dev_ptr)
 
 
     def __sub__(self, other):
       size = int(np.prod(self._shape))
-      libsmnv.Sub(size, self._dev_ptr, other.gpu, ctypes.c_float(0), self._dev_ptr, size, size)
+      libsmcn.Sub(size, self._dev_ptr, other.gpu, ctypes.c_float(0), self._dev_ptr, size, size)
       return self
 
     
@@ -66,8 +68,8 @@ try:
       self._nbytes = 4 * int(np.prod(self._shape))
 
       if self._nbytes > self._capacity:
-        libsmnv.CudaFree(self._dev_ptr)
-        self._dev_ptr = ctypes.c_void_p(libsmnv.CudaMalloc(ctypes.c_size_t(self._nbytes)))
+        libsmcn.MluFree(self._dev_ptr)
+        self._dev_ptr = ctypes.c_void_p(libsmcn.MluMalloc(ctypes.c_size_t(self._nbytes)))
 
         self._capacity = self._nbytes
 
@@ -75,7 +77,7 @@ try:
 
     def feed(self, data):
       self._data = np.ascontiguousarray(data, dtype=self._dtype)
-      libsmnv.CudaMemcpyHostToDevice(self._dev_ptr, c_data(self._data), self._nbytes)
+      libsmcn.MluMemcpyHostToDevice(self._dev_ptr, c_data(self._data), self._nbytes)
 
     
     @property
@@ -86,7 +88,7 @@ try:
     @property
     def numpy(self):
       data = np.empty(shape=self._shape, dtype=self._dtype)
-      libsmnv.CudaMemcpyDeviceToHost(c_data(data), self._dev_ptr, self._nbytes)
+      libsmcn.MluMemcpyDeviceToHost(c_data(data), self._dev_ptr, self._nbytes)
       return data
 
 
@@ -95,7 +97,7 @@ try:
 
   def list_array(nvarrs):
     ptrs = (ctypes.c_void_p * len(nvarrs))(*[arr for arr in nvarrs])
-    dev_ptrs = ctypes.c_void_p(libsmnv.CudaArray(ptrs, len(nvarrs)))
+    dev_ptrs = ctypes.c_void_p(libsmcn.MluArray(ptrs, len(nvarrs)))
     return dev_ptrs
 
 
@@ -114,7 +116,7 @@ try:
       gpu_memory[name] = NvArray(data, shape, nbytes, dtype)
       return gpu_memory[name]
 
-  with_cuda = True
-except:
-  print('SMNET with out cuda')
-  with_cuda = False
+  with_mlu = True
+# except:
+#   print('SMNET with out mlu')
+#   with_mlu = False

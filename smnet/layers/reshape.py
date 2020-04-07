@@ -6,6 +6,7 @@ import numpy as np
 
 from ..layer import Layer
 from . import _math_utils as  math_utils
+
 from ..third_party import nvarray as nv
 
 
@@ -50,7 +51,10 @@ class GpuReshape(Reshape):
       self.x._grad_seted = True
 
 
-def reshape(x, shape, name=None, device='gpu'):
+def reshape(x, shape, name=None, device='cpu'):
+  if nv.with_cuda is True:
+    device = 'gpu'
+
   if device == 'gpu':
     layer = GpuReshape(x, shape, name)
   else:

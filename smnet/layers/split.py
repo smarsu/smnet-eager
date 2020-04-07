@@ -5,7 +5,10 @@ import numpy as np
 
 from . import _math_utils as math_utils
 from ..layer import Layer
-from ..kernels.gpu import *
+
+from ..third_party import nvarray as nv
+if nv.with_cuda is True:
+  from ..kernels.gpu import *
 
 
 class Split(Layer):
@@ -91,7 +94,10 @@ class GpuSplit(Split):
     self.split_kernel.backward()
 
 
-def split(value, num_or_size_splits, axis=0, name=None, device='gpu'):
+def split(value, num_or_size_splits, axis=0, name=None, device='cpu'):
+  if nv.with_cuda is True:
+    device = 'cpu'
+
   if device == 'gpu':
     layer = GpuSplit(value, num_or_size_splits, axis, name)
   else:
@@ -100,5 +106,5 @@ def split(value, num_or_size_splits, axis=0, name=None, device='gpu'):
   layer.forward()
 
   glog.info('Run {} Split Layer ... <{}> -> <{}>'.format(
-    device, value.shape, [tensor.shape for tensor in layer.res]))
+    device, layer.value.shape, [tensor.shape for tensor in layer.res]))
   return layer.res

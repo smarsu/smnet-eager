@@ -7,7 +7,14 @@ import numpy as np
 from .import _math_utils as math_utils
 from ..blob import Tensor
 from ..layer import Layer
-from ..kernels.gpu import *
+
+from ..third_party import nvarray as nv
+if nv.with_cuda is True:
+  from ..kernels.gpu import *
+
+from ..third_party import cnarray as cn
+if cn.with_mlu is True:
+  from ..kernels.mlu import MluAddPadKernel, MluPool2DKernel
 
 
 def get_output_dim(input_dim, pad, filter_dim, dilation, stride):
@@ -176,21 +183,104 @@ class GpuPool2D(Pool2D):
       self.addpad_kernel.backward()
 
 
+class MluPool2D(Pool2D):
+  def __init__(self, 
+               value,
+               ksize,
+               strides,
+               padding,
+               mode,
+               name=None):
+    super(MluPool2D, self).__init__(value, ksize, strides, padding, mode, name=name)
+
+
+  def prepare(self):
+    n, hi, wi, ci = self.value.shape
+    hf, wf = self.ksize
+    hs, ws = self.strides
+
+    if self.padding == 'VALID':
+      pad_t, pad_b, pad_l, pad_r = 0, 0, 0, 0
+    elif self.padding == 'SAME':
+      ho, wo = math.ceil(hi / hs), math.ceil(wi / ws)
+      hp = hs * (ho - 1) + (hf - 1) + 1 - hi
+      wp = ws * (wo - 1) + (wf - 1) + 1 - wi
+      pad_t, pad_b, pad_l, pad_r = hp // 2, hp - hp // 2, wp // 2, wp - wp // 2
+    else:
+      (pad_t, pad_b), (pad_l, pad_r) = self.padding
+
+    ho = get_output_dim(hi, pad_t + pad_b, hf, 1, hs)
+    wo = get_output_dim(wi, pad_l + pad_r, wf, 1, ws)
+
+    if self.mode == 'MAX':
+      constant_values = -np.inf
+    elif self.mode == 'AVG':
+      constant_values = 0
+
+    return constant_values, pad_t, pad_b, pad_l, pad_r, n, ci, ho, wo
+
+
+  def forward(self):
+    n, hi, wi, ci = self.value.shape
+    constant_values, pad_t, pad_b, pad_l, pad_r, n, ci, ho, wo = self.prepare()
+
+    self.res.reshape([n, ho, wo, ci])
+
+    mode = 0 if self.mode == 'MAX' else 1
+    self.pad = None
+    self.addpad_kernel = None
+
+    if sum([pad_t, pad_b, pad_l, pad_r]) != 0:
+      shape = [n, hi + pad_t + pad_b, wi + pad_l + pad_r, ci]
+      self.pad = Tensor(dtype=self.value.dtype, need_grad=True)
+      self.pad.reshape(shape)
+      self.addpad_kernel = MluAddPadKernel(self.value, self.pad, pad_t, pad_b, pad_l, pad_r, constant_values)
+
+      self.pool2d_kernel = MluPool2DKernel(self.pad, 
+                                           self.res, 
+                                           mode, 
+                                           self.ksize,
+                                           (0, 0),
+                                           self.strides)
+    else:
+      self.pool2d_kernel = MluPool2DKernel(self.value,
+                                           self.res,
+                                           mode,
+                                           self.ksize,
+                                           (0, 0),
+                                           self.strides)
+
+    if self.addpad_kernel is not None:
+      self.addpad_kernel.forward()
+    self.pool2d_kernel.forward()
+
+
+  def backward(self):
+    pass
+
+
 def max_pool2d(value,
                ksize,
                strides,
                padding,
                name=None,
-               device='gpu'):
+               device='cpu'):
+  if nv.with_cuda is True:
+    device = 'gpu'
+  elif cn.with_mlu is True:
+    device = 'mlu'
+
   if device == 'gpu':
     layer = GpuPool2D(value, ksize, strides, padding, 'MAX', name)
+  elif device == 'mlu':
+    layer = MluPool2D(value, ksize, strides, padding, 'MAX', name)
   else:
     layer = Pool2D(value, ksize, strides, padding, 'MAX', name)
 
   layer.forward()
 
   glog.info('Run {} MaxPool2D Layer ... <{}> -> <{}>'.format(
-    device, value.shape, layer.res.shape))
+    device, layer.value.shape, layer.res.shape))
   return layer.res
 
 
@@ -199,14 +289,21 @@ def avg_pool2d(value,
                strides,
                padding,
                name=None,
-               device='gpu'):
+               device='cpu'):
+  if nv.with_cuda is True:
+    device = 'gpu'
+  elif cn.with_mlu is True:
+    device = 'mlu'
+
   if device == 'gpu':
     layer = GpuPool2D(value, ksize, strides, padding, 'AVG', name)
+  elif device == 'mlu':
+    layer = MluPool2D(value, ksize, strides, padding, 'AVG', name)
   else:
     layer = Pool2D(value, ksize, strides, padding, 'AVG', name)
 
   layer.forward()
 
   glog.info('Run {} AvgPool2D Layer ... <{}> -> <{}>'.format(
-    device, value.shape, layer.res.shape))
+    device, layer.value.shape, layer.res.shape))
   return layer.res

@@ -6,6 +6,8 @@ import numpy as np
 from ..layer import Layer
 from . import _math_utils as math_utils
 
+from ..third_party import nvarray
+
 
 class BatchNormalization(Layer):
   def __init__(self, 
@@ -84,10 +86,14 @@ def batch_normalization(inputs,
                         momentum=0.99,
                         epsilon=0.001,
                         training=False,
-                        name=None):
+                        name=None,
+                        device='cpu'):
+  if nvarray.with_cuda is True:
+    device = 'gpu'
+
   layer = BatchNormalization(inputs, mean, variance, offset, scale, axis, momentum, epsilon, training, name)
   layer.forward()
 
   glog.info('Run {} BatchNorm Layer ... <{}> -> <{}>'.format(
-    device, inputs.shape, layer.res.shape))
+    device, layer.inputs.shape, layer.res.shape))
   return layer.res

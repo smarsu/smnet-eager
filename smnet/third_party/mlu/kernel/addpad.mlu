@@ -1,0 +1,41 @@
+// Copyright (c) 2020 smarsu. All Rights Reserved.
+
+#include "addpad_0402.h"
+
+__mlu_entry__ void addpad_entry(void *src,
+                                void *dst,
+                                int n,
+                                int h,
+                                int w,
+                                int c,
+                                int pad_t,
+                                int pad_b,
+                                int pad_l,
+                                int pad_r,
+                                PadMode mode,
+                                Layout layout,
+                                float pad_value) {
+  __nram__ int8_t nram_buf[NRAM_BUF_SIZE];
+  __mlu_shared__ int8_t sram_buf[SRAM_BUF_SIZE];
+
+#define ADDPAD(T) \
+    addpad_wrap((T *)src, \
+                (T *)dst, \
+                n, \
+                h, \
+                w, \
+                c, \
+                pad_t, \
+                pad_b, \
+                pad_l, \
+                pad_r, \
+                mode, \
+                layout, \
+                (T)pad_value, \
+                (T *)nram_buf, \
+                (T *)sram_buf);
+
+  ADDPAD(float);
+
+#undef ADDPAD
+}

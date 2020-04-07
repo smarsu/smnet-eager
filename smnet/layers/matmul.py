@@ -5,6 +5,8 @@ import numpy as np
 
 from ..layer import Layer
 
+from ..third_party import nvarray as nv
+
 
 class Matmul(Layer):
   def __init__(self, a, b, name=None):
@@ -30,9 +32,12 @@ class Matmul(Layer):
 
 
 def matmul(a, b, name=None, device='cpu'):
+  if nv.with_cuda is True:
+    device = 'gpu'
+  
   layer = Matmul(a, b, name)
   layer.forward()
 
   glog.info('Run {} Matmul Layer ... <{}, {}> -> <{}>'.format(
-    device, a.shape, b.shape, layer.res.shape))
+    device, layer.a.shape, layer.b.shape, layer.res.shape))
   return layer.res

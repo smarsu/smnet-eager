@@ -7,7 +7,10 @@ import numpy as np
 
 from . import _math_utils as math_utils
 from ..layer import Layer
-from ..kernels import GatherKernel
+
+from ..third_party import nvarray as nv
+if nv.with_cuda is True:
+  from ..kernels import GatherKernel
 
 
 class Gather(Layer):

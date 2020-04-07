@@ -6,7 +6,10 @@ import numpy as np
 from . import _math_utils as math_utils
 from ..blob import Tensor
 from ..layer import Layer
-from ..kernels import SoftmaxKernel, BinaryElementwiseKernel
+
+from ..third_party import nvarray as nv
+if nv.with_cuda is True:
+  from ..kernels import SoftmaxKernel, BinaryElementwiseKernel
 
 
 class SoftmaxCrossEntropyWithLogits(Layer):
@@ -93,18 +96,19 @@ class GpuSoftmaxCrossEntropyWithLogits(SoftmaxCrossEntropyWithLogits):
     self.softmax_kernel.backward(1)
 
 
-def softmax_cross_entropy_with_logits(labels, logits, axis=-1, name=None, device='gpu'):
+def softmax_cross_entropy_with_logits(labels, logits, axis=-1, name=None, device='cpu'):
+  if nv.with_cuda is True:
+    device = 'cpu'
+
   if device == 'gpu':
     layer = GpuSoftmaxCrossEntropyWithLogits(labels, logits, axis, name)
   else:
     layer = SoftmaxCrossEntropyWithLogits(labels, logits, axis, name)
 
-  # layer = SoftmaxCrossEntropyWithLogits(labels, logits, axis, name)
-
   layer.forward()
 
   glog.info('Run {} SoftmaxCrossEntropy Layer ... <{}> -> <{}>'.format(
-    device, logits.shape, layer.res.shape))
+    device, layer.logits.shape, layer.res.shape))
 
   if device == 'gpu':
     return -1 * layer.res

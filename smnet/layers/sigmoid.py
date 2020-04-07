@@ -33,5 +33,5 @@ def sigmoid(a, name=None, device='cpu'):
 
 
   glog.info('Run {} Sigmoid Layer ... <{}> -> <{}>'.format(
-    device, a.shape, layer.res.shape))
+    device, layer.a.shape, layer.res.shape))
   return layer.res

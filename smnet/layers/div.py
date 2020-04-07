@@ -4,8 +4,12 @@ import glog
 import numpy as np
 
 from . import _math_utils as math_utils
-from .elementwise import GpuBinaryElementwise
 from ..layer import Layer
+
+from ..third_party import nvarray as nv
+if nv.with_cuda is True:
+  from .elementwise import GpuBinaryElementwise
+
 
 class Div(Layer):
   def __init__(self, a, b, name=None):
@@ -37,7 +41,10 @@ class Div(Layer):
       self.b.feed_grad(grad)
 
 
-def div(a, b, name=None, device='gpu'):
+def div(a, b, name=None, device='cpu'):
+  if nv.with_cuda is True:
+    device = 'gpu'
+
   if device == 'gpu':
     layer = GpuBinaryElementwise(a, b, 'Div', name)
   else:
@@ -46,5 +53,5 @@ def div(a, b, name=None, device='gpu'):
   layer.forward()
 
   glog.info('Run {} Div Layer ... <{}, {}> -> <{}>'.format(
-    device, a.shape, b.shape, layer.res.shape))
+    device, layer.a.shape, layer.b.shape, layer.res.shape))
   return layer.res
