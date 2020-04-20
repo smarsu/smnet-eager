@@ -9,6 +9,9 @@ from ..layer import Layer
 from ..third_party import nvarray as nv
 if nv.with_cuda is True:
   from ..kernels.gpu import *
+from ..third_party import cnarray as cn
+if cn.with_mlu is True:
+  from ..kernels.mlu import MluSplitKernel
 
 
 class Split(Layer):
@@ -94,12 +97,38 @@ class GpuSplit(Split):
     self.split_kernel.backward()
 
 
+class MluSplit(Split):
+  def __init__(self,
+               value,
+               num_or_size_splits,
+               axis=0,
+               name=None):
+    super(MluSplit, self).__init__(value, num_or_size_splits, axis, name)
+
+
+  def forward(self):
+    self.prepare()
+
+    splt = [0] + self.splt
+    for idx in range(len(self.res)):
+      shape = list(self.value.shape)
+      shape[self.axis] = splt[idx + 1] - splt[idx]
+      self.res[idx].reshape(shape)
+
+    self.split_kernel = MluSplitKernel(self.value, self.res, self.axis, self.splt)
+    self.split_kernel.forward()    
+
+
 def split(value, num_or_size_splits, axis=0, name=None, device='cpu'):
   if nv.with_cuda is True:
     device = 'cpu'
+  elif cn.with_mlu is True:
+    device = 'mlu'
 
   if device == 'gpu':
     layer = GpuSplit(value, num_or_size_splits, axis, name)
+  elif device == 'mlu':
+    layer = MluSplit(value, num_or_size_splits, axis, name)
   else:
     layer = Split(value, num_or_size_splits, axis, name)
 

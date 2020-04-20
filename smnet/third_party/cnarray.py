@@ -11,8 +11,7 @@ def get_smcn_lib_path():
   lbpt = osp.join(rldir, 'third_party', 'lib', 'libsmcn.so')
   return lbpt
 
-if True:
-# try:
+try:
   ctypes.c_float_p = ctypes.POINTER(ctypes.c_float)
   ctypes.c_int_p = ctypes.POINTER(ctypes.c_int)
 
@@ -117,6 +116,6 @@ if True:
       return gpu_memory[name]
 
   with_mlu = True
-# except:
-#   print('SMNET with out mlu')
-#   with_mlu = False
+except:
+  print('SMNET with out mlu')
+  with_mlu = False

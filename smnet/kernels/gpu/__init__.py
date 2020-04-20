@@ -5,6 +5,8 @@ if nv.with_cuda is True:
   from .activation import ActivationKernel
   from .broadcast import BroadcastKernel
   from .conv2d import Conv2DKernel
+  from .crop import CropConstNCHWKernel
+  from .deconv2d import Deconv2DKernel
   from .elementwise import BinaryElementwiseKernel
   from .pad import PadConstNCHWKernel
   from .pool2d import Pool2DKernel

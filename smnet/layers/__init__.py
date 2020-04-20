@@ -5,6 +5,7 @@ from .addpad import addpad
 from .batch_normalization import batch_normalization
 from .concat import concat
 from .conv2d import conv2d
+from .deconv2d import deconv2d
 from .div import div
 from .dropout import dropout
 from .matmul import matmul

@@ -1,0 +1,37 @@
+// Copyright (c) 2020 smarsu. All Rights Reserved.
+
+#include "split.h"
+
+#define NRAM_REMAIN_SIZE (1024 + 128)
+#define NRAM_BUF_SIZE (512 * 1024 - NRAM_REMAIN_SIZE)
+
+__mlu_entry__ void split_entry(void *src,
+                               void **dst,
+                               int n,
+                               int t,
+                               int c,
+                               int *size_splits,
+                               int num_output,
+                               DataType dtype) {
+  __nram__ int8_t nram_buf[NRAM_BUF_SIZE];
+
+#define SPLIT(T) \
+    split((T *)src, \
+          (T **)dst, \
+          n, \
+          t, \
+          c, \
+          size_splits, \
+          num_output, \
+          NRAM_BUF_SIZE, \
+          (T *)nram_buf);
+
+  if (dtype == DataType::kFloat32) {
+    SPLIT(float);
+  }
+  else if (dtype == DataType::kFloat16) {
+    SPLIT(half);
+  }
+
+#undef SPLIT
+}

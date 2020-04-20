@@ -109,6 +109,7 @@ Conv2DParams *CudnnConv2DCreate(cudnnHandle_t cudnn_handle,
                                              CUDNN_CROSS_CORRELATION,
                                              CUDNN_DATA_FLOAT));
 
+  size_t size = 0;
   CALL_CUDNN(cudnnGetConvolutionForwardAlgorithm(cudnn_handle,
                                                  params->x_desc,
                                                  params->w_desc,
@@ -120,7 +121,6 @@ Conv2DParams *CudnnConv2DCreate(cudnnHandle_t cudnn_handle,
                                                  &params->fwd_algo));
   // params->fwd_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
 
-  size_t size = 0;
   CALL_CUDNN(cudnnGetConvolutionForwardWorkspaceSize(cudnn_handle,
                                                      params->x_desc,
                                                      params->w_desc,

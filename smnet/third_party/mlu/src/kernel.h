@@ -10,6 +10,7 @@ extern "C" {
   void addpad_entry();
   void conv2d_entry();
   void pool_entry();
+  void split_entry();
 }  // extern "C"
 
 class KernelParam {
@@ -43,6 +44,7 @@ class KernelInitParam {
   INITPARAM(addpad);
   INITPARAM(conv2d);
   INITPARAM(pool);
+  INITPARAM(split);
 
 #undef INITPARAM
 };

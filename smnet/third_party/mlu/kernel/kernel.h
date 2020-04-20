@@ -62,3 +62,26 @@ __mlu_func__ void quant(IT *dst, T *src, int size, float *scale, int *pos, T *nr
   __bang_mul_const(src, src, *scale, size);
   F2I(dst, src, size, *pos);
 }
+
+template <typename T>
+__mlu_func__ void __mlvm_memcpy_gdram_to_gdram(T *dst, 
+                                               T *src, 
+                                               int size, 
+                                               int dst_stride, 
+                                               int src_stride, 
+                                               int count, 
+                                               int nram_buf_size,
+                                               T *nram_buf) {
+  ++count;
+  if (size * count > nram_buf_size) {
+    for (int i = 0; i < count; ++i) {
+      __mlvm_memcpy_gdram_to_gdram(dst + i * dst_stride, 
+                                   src + i * src_stride, 
+                                   size);
+    }
+  }
+  else {
+    __memcpy(nram_buf, src, size, GDRAM2NRAM, size, src_stride, count - 1);
+    __memcpy(dst, nram_buf, size, NRAM2GDRAM, dst_stride, size, count - 1);
+  }
+}
